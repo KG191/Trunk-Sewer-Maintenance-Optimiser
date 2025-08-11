@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm start)",
+      "Bash(lsof:*)",
+      "Bash(kill:*)",
+      "Bash(curl:*)",
+      "Bash(node server.js)",
+      "Bash(npm run dev:*)",
+      "Bash(PORT=3001 node server.js)",
+      "Bash(node:*)",
+      "Bash(open /Users/kirangokal/sewer_maintenance_optimizer_pro.html)",
+      "Bash(pkill:*)",
+      "Bash(npm:*)"
+    ],
+    "deny": []
+  }
+}

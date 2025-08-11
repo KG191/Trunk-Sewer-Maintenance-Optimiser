@@ -1,0 +1,20 @@
+{
+  "watch": [
+    "server.js",
+    "sewer_maintenance_optimizer_pro.html",
+    ".env"
+  ],
+  "ignore": [
+    "node_modules/*",
+    "Library/*",
+    ".git/*",
+    "*.log",
+    ".DS_Store",
+    ".vscode/*"
+  ],
+  "ext": "js,html,json,env",
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "delay": 1000
+}
