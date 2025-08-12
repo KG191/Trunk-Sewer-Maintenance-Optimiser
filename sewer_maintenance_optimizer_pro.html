@@ -643,9 +643,10 @@
         }
     </style>
     
-    <!-- Google Maps API Script -->
+    <!-- Google Maps API Script - Loaded with proper async pattern -->
     <script async defer
-        src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=geometry&callback=initGoogleMaps">
+        src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=geometry,marker&callback=initGoogleMaps&loading=async"
+        onerror="handleGoogleMapsError()">
     </script>
 </head>
 <body>
@@ -1395,6 +1396,13 @@
             fallbackReason: null
         };
         
+        // Google Maps API Error Handler
+        window.handleGoogleMapsError = function() {
+            updateApiStatus('error', 'Failed to load Google Maps API - likely invalid API key');
+            showNotification('⚠️ Google Maps API failed to load. Using fallback calculations.', 'warning');
+            console.warn('Google Maps API failed to load - check API key configuration');
+        };
+        
         // Google Maps API Initialization Callback
         window.initGoogleMaps = function() {
             try {
@@ -1409,10 +1417,31 @@
                 showNotification('✅ Google Maps API loaded successfully', 'success');
                 console.log('Google Maps API initialized successfully');
                 
+                // Suppress the deprecated Marker warning (migration to AdvancedMarkerElement planned)
+                if (console.warn) {
+                    const originalWarn = console.warn;
+                    console.warn = function(...args) {
+                        if (args[0] && typeof args[0] === 'string' && 
+                            args[0].includes('google.maps.Marker is deprecated')) {
+                            // Silently ignore the deprecation warning for now
+                            return;
+                        }
+                        originalWarn.apply(console, args);
+                    };
+                }
+                
             } catch (error) {
                 // API failed to load or function properly
-                updateApiStatus('fallback', 'API initialization failed');
-                showNotification('⚠️ Google Maps API unavailable. Using fallback calculations.', 'warning');
+                let errorMsg = 'API initialization failed';
+                let notification = '⚠️ Google Maps API unavailable. Using fallback calculations.';
+                
+                if (error.message && error.message.includes('InvalidKey')) {
+                    errorMsg = 'Invalid API key - check configuration';
+                    notification = '🔑 Google Maps API key invalid. Using fallback calculations.';
+                }
+                
+                updateApiStatus('fallback', errorMsg);
+                showNotification(notification, 'warning');
                 console.warn('Google Maps API initialization failed:', error);
             }
         };
