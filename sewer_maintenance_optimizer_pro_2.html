@@ -1988,7 +1988,8 @@
                     'ycoord': 'y'
                 };
                 
-                const requiredFields = ['id', 'length', 'diameter', 'riskCategory', 'accessScore', 'bypassRequired', 'x', 'y'];
+                // Updated required fields - coordinates can be either lat/lng or legacy x/y
+                const requiredFields = ['id', 'length', 'diameter', 'riskCategory', 'accessScore', 'bypassRequired'];
                 
                 const missingCols = requiredFields.filter(field => {
                     const mappedField = Object.keys(columnMapping).find(key => columnMapping[key] === field);
@@ -2003,6 +2004,20 @@
                 
                 if (missingCols.length > 0) {
                     alert(`Missing required columns: ${missingCols.join(', ')}`);
+                    updateSystemStatus('Ready', 'status-ready');
+                    return;
+                }
+                
+                // Validate coordinate columns - require either lat/lng OR x/y OR combined DMS format
+                const hasLatLng = headers.some(h => h.toLowerCase().includes('latitude')) && 
+                                  headers.some(h => h.toLowerCase().includes('longitude'));
+                const hasXY = headers.some(h => h.toLowerCase().includes('x')) && 
+                              headers.some(h => h.toLowerCase().includes('y'));
+                const hasCombinedCoords = headers.some(h => h.toLowerCase().includes('latitude and longitude') || 
+                                                           h.toLowerCase().includes('coordinates'));
+                
+                if (!hasLatLng && !hasXY && !hasCombinedCoords) {
+                    alert('Missing coordinate columns. CSV must contain either:\n• Separate Latitude and Longitude columns, OR\n• X_Coord and Y_Coord columns, OR\n• Combined "Latitude and longitude" column');
                     updateSystemStatus('Ready', 'status-ready');
                     return;
                 }
@@ -2719,7 +2734,12 @@
             }
             
             try {
-                const currentLocation = new google.maps.LatLng(currentAsset.x, currentAsset.y);
+                const currentPosition = getAssetPosition(currentAsset);
+                if (!currentPosition) {
+                    console.warn(`Asset ${currentAsset.id} has no valid coordinates for proximity calculation`);
+                    return [];
+                }
+                const currentLocation = new google.maps.LatLng(currentPosition.lat, currentPosition.lng);
                 const proximateAssets = [];
                 
                 // Check assets scheduled within 12 months (current year)
@@ -2728,7 +2748,9 @@
                 for (const asset of relevantAssets) {
                     if (asset.id === currentAsset.id) continue;
                     
-                    const assetLocation = new google.maps.LatLng(asset.x, asset.y);
+                    const assetPosition = getAssetPosition(asset);
+                    if (!assetPosition) continue;
+                    const assetLocation = new google.maps.LatLng(assetPosition.lat, assetPosition.lng);
                     const distance = google.maps.geometry.spherical.computeDistanceBetween(currentLocation, assetLocation);
                     
                     // Check proximity (500m), diameter category, and timing constraints
