@@ -475,7 +475,7 @@
         }
 
         .risk-high { background: #FFE5E5; color: #D70015; }
-        .risk-medium { background: #FFF4E5; color: #D27500; }
+        .risk-medium { background: #FCE7F3; color: #BE185D; }
         .risk-low { background: #E5F7E5; color: #1B7A1B; }
 
         /* Animations */
@@ -2065,12 +2065,9 @@
                         else if (cleanHeader.includes('length')) asset.length = parseFloat(value) || 0;
                         else if (cleanHeader.includes('diameter') || cleanHeader.includes('size')) asset.diameter = parseFloat(value) || 0;
                         else if (cleanHeader.includes('risk')) {
-                            // Enhanced risk parsing for Pro 2.0
-                            if (cleanHeader === 'risk' && !isNaN(value)) {
-                                // Direct numeric risk score
-                                asset.riskScore = parseFloat(value) || 10;
-                            } else {
-                                // Convert categorical risk rating to numeric
+                            // Enhanced risk parsing for Pro 2.0 - prioritize categorical over numeric
+                            if (cleanHeader.includes('rating') || cleanHeader.includes('category') || cleanHeader.includes('level')) {
+                                // Categorical risk rating (High, Moderate, Low) - PRIORITY
                                 const riskMap = {
                                     'extreme': 25, 
                                     'veryhigh': 20, 'very high': 20,
@@ -2082,6 +2079,11 @@
                                 const normalizedValue = value.toLowerCase().replace(/\s+/g, '');
                                 asset.riskScore = riskMap[normalizedValue] || riskMap[value.toLowerCase()] || 10;
                                 asset.riskCategory = value;
+                                console.log(`Parsed risk category: ${value} -> score: ${asset.riskScore} for asset ${asset.id}`);
+                            } else if (cleanHeader === 'risk' && !isNaN(value) && !asset.riskScore) {
+                                // Direct numeric risk score - only if no categorical score set
+                                asset.riskScore = parseFloat(value) || 10;
+                                console.log(`Parsed numeric risk: ${value} -> score: ${asset.riskScore} for asset ${asset.id}`);
                             }
                         }
                         else if (cleanHeader.includes('recommended') && cleanHeader.includes('year')) asset.recommendedYear = parseInt(value) || new Date().getFullYear();
@@ -2485,6 +2487,39 @@
                     console.log(`Year ${year}: Scheduled ${yearlyAssets.length} assets, ${yearlyLength}m of ${dynamicCapacity}m capacity (${(yearlyLength/dynamicCapacity*100).toFixed(1)}% utilized)`);
                 }
                 
+                // Final pass: Ensure ALL assets are scheduled regardless of capacity constraints
+                const unscheduledAssets = assets.filter(asset => {
+                    if (asset.diameter < minDiameter) return false;
+                    return !schedule.some(scheduled => scheduled.id === asset.id);
+                });
+                
+                if (unscheduledAssets.length > 0) {
+                    console.log(`Final scheduling pass: ${unscheduledAssets.length} unscheduled assets remaining`);
+                    
+                    // Distribute remaining assets across all years, prioritizing later years
+                    let yearIndex = planningPeriods; // Start from last year
+                    unscheduledAssets.forEach(asset => {
+                        const drivers = getTechnicalSchedulingDrivers(asset, yearIndex);
+                        
+                        schedule.push({
+                            ...asset,
+                            year: new Date().getFullYear() + yearIndex - 1,
+                            proximityBenefit: false, // No proximity calculation for final pass
+                            schedulingDrivers: [...drivers, 'Final scheduling pass - ensures complete coverage']
+                        });
+                        
+                        // Track risk coverage for final assets
+                        if (asset.riskScore >= 15) {
+                            totalRiskCoverage += 1;
+                        }
+                        
+                        // Cycle through years for remaining assets
+                        yearIndex = yearIndex > 1 ? yearIndex - 1 : planningPeriods;
+                    });
+                    
+                    console.log(`Final pass complete: All ${assets.length} assets now scheduled`);
+                }
+                
                 updateProgress(100);
                 setTimeout(() => {
                     hideProgressBar();
@@ -2695,7 +2730,7 @@
                     // Risk color coding (High risk = Red, Medium = Amber, Low = Green)
                     let riskColor = trafficRed; // Red for high risk
                     if (asset.riskScore <= 5) riskColor = trafficGreen; // Green for low risk
-                    else if (asset.riskScore <= 10) riskColor = trafficAmber; // Amber for medium risk
+                    else if (asset.riskScore <= 10) riskColor = '#FCE7F3'; // Pink for medium risk
                     
                     // Access color coding (Good access = Green, Moderate = Amber, Difficult = Red)
                     let accessColor = trafficRed; // Red for difficult access
@@ -3733,7 +3768,7 @@
                 const riskColor = riskLevel.includes('Extreme') ? '#DC2626' : 
                                   riskLevel.includes('Very High') ? '#F59E0B' :
                                   riskLevel.includes('High') ? '#FF9F0A' :
-                                  riskLevel.includes('Medium') ? '#10B981' : '#6B7280';
+                                  riskLevel.includes('Medium') ? '#EC4899' : '#6B7280';
                 
                 html += `
                     <div style="margin-bottom: 20px;">
