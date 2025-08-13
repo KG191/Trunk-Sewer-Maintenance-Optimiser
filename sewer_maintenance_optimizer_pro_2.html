@@ -2794,26 +2794,145 @@
             return colors[priority] || '#6B7280';
         }
         
+        // Create fallback map view when Google Maps API is not available
+        function createFallbackMapView() {
+            const mapElement = document.getElementById('assetMap');
+            if (!mapElement) return;
+            
+            // Get current assets data
+            const currentAssets = assets || [];
+            const scheduledAssets = schedule || [];
+            
+            mapElement.innerHTML = `
+                <div style="height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; padding: 20px; color: white; overflow-y: auto;">
+                    <div style="text-align: center; margin-bottom: 24px;">
+                        <div style="font-size: 48px; margin-bottom: 12px;">🗺️</div>
+                        <h3 style="margin: 0 0 8px 0; color: white;">Asset Location Overview</h3>
+                        <p style="margin: 0; opacity: 0.9; font-size: 14px;">Google Maps API unavailable - Showing coordinate-based asset data</p>
+                    </div>
+                    
+                    ${currentAssets.length > 0 ? `
+                        <div style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+                            <h4 style="margin: 0 0 16px 0; color: white; display: flex; align-items: center;">
+                                <span style="margin-right: 8px;">📊</span>
+                                Asset Distribution Summary
+                            </h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                                ${generateAssetStats(currentAssets, scheduledAssets)}
+                            </div>
+                        </div>
+                        
+                        <div style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 20px;">
+                            <h4 style="margin: 0 0 16px 0; color: white; display: flex; align-items: center;">
+                                <span style="margin-right: 8px;">📍</span>
+                                Asset Coordinates & Priority
+                            </h4>
+                            <div style="max-height: 300px; overflow-y: auto;">
+                                ${generateAssetList(currentAssets.slice(0, 20))}
+                            </div>
+                            ${currentAssets.length > 20 ? 
+                                `<p style="text-align: center; margin: 12px 0 0 0; opacity: 0.8; font-size: 13px;">
+                                    Showing first 20 of ${currentAssets.length} assets
+                                </p>` : ''
+                            }
+                        </div>
+                    ` : `
+                        <div style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 40px; text-align: center;">
+                            <div style="font-size: 32px; margin-bottom: 16px; opacity: 0.7;">📋</div>
+                            <h4 style="margin: 0 0 12px 0; color: white;">No Asset Data Available</h4>
+                            <p style="margin: 0; opacity: 0.8;">Upload CSV data to view asset locations and priorities</p>
+                        </div>
+                    `}
+                    
+                    <div style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 16px; margin-top: 20px; text-align: center;">
+                        <h5 style="margin: 0 0 8px 0; color: white;">🔧 Enable Full Map Features</h5>
+                        <p style="margin: 0 0 12px 0; opacity: 0.8; font-size: 13px;">
+                            Configure Google Maps API key for interactive mapping, proximity visualization, and geographic clustering
+                        </p>
+                        <button onclick="showApiSetupInfo()" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                            View Setup Instructions
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Generate asset statistics for fallback view
+        function generateAssetStats(allAssets, scheduledAssets) {
+            const stats = {
+                total: allAssets.length,
+                scheduled: scheduledAssets.length,
+                critical: allAssets.filter(a => getPriorityLevel(a.technicalScore || 0) === 'critical').length,
+                high: allAssets.filter(a => getPriorityLevel(a.technicalScore || 0) === 'high').length
+            };
+            
+            return `
+                <div style="text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; margin-bottom: 4px;">${stats.total}</div>
+                    <div style="font-size: 12px; opacity: 0.9;">Total Assets</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; margin-bottom: 4px; color: #4ade80;">${stats.scheduled}</div>
+                    <div style="font-size: 12px; opacity: 0.9;">Scheduled</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; margin-bottom: 4px; color: #f87171;">${stats.critical}</div>
+                    <div style="font-size: 12px; opacity: 0.9;">Critical Priority</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; margin-bottom: 4px; color: #fbbf24;">${stats.high}</div>
+                    <div style="font-size: 12px; opacity: 0.9;">High Priority</div>
+                </div>
+            `;
+        }
+        
+        // Generate asset list for fallback view
+        function generateAssetList(assetList) {
+            if (!assetList.length) return '<p style="text-align: center; opacity: 0.7;">No assets to display</p>';
+            
+            return assetList.map(asset => {
+                const priority = getPriorityLevel(asset.technicalScore || 0);
+                const priorityColor = getPriorityColor(priority);
+                const isScheduled = schedule.some(s => s.id === asset.id);
+                
+                return `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; margin: 4px 0; background: rgba(255,255,255,0.1); border-radius: 4px; font-size: 13px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="font-weight: 600;">${asset.id}</span>
+                            <span style="background: ${priorityColor}; color: #374151; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600;">
+                                ${priority.toUpperCase()}
+                            </span>
+                            ${isScheduled ? '<span style="color: #4ade80; font-size: 11px;">📅 SCHEDULED</span>' : ''}
+                        </div>
+                        <div style="text-align: right; opacity: 0.8; font-size: 11px;">
+                            <div>X: ${asset.x ? asset.x.toFixed(1) : 'N/A'}</div>
+                            <div>Y: ${asset.y ? asset.y.toFixed(1) : 'N/A'}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Show API setup information
+        function showApiSetupInfo() {
+            showNotification(`
+                <div style="text-align: left;">
+                    <strong>Google Maps API Setup:</strong><br>
+                    1. Get API key from Google Cloud Console<br>
+                    2. Replace 'YOUR_API_KEY' in the script tag<br>
+                    3. Enable Maps JavaScript API & Geometry Library<br><br>
+                    <em>See Technical Notes tab for detailed instructions</em>
+                </div>
+            `, 'info');
+        }
+        
         // Initialize Google Maps for asset visualization
         function initializeAssetMap() {
             if (!document.getElementById('assetMap')) return;
             
             // Check if Google Maps is available and API status
             if (!window.google || !window.google.maps || apiStatus.status === 'fallback') {
-                const mapElement = document.getElementById('assetMap');
-                mapElement.innerHTML = `
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; background: #f8f9fa; border-radius: 8px; padding: 40px;">
-                        <div style="font-size: 48px; margin-bottom: 16px;">🗺️</div>
-                        <h3 style="color: #666; margin-bottom: 12px;">Map View Unavailable</h3>
-                        <p style="color: #888; text-align: center; max-width: 400px;">
-                            Google Maps API is not available. The system is using mathematical calculations for proximity detection.
-                            All optimization features remain fully functional.
-                        </p>
-                        <div style="margin-top: 20px; padding: 12px 24px; background: #e3f2fd; border-radius: 6px; color: #1976d2;">
-                            📊 Fallback Mode Active - No Visual Impact on Results
-                        </div>
-                    </div>
-                `;
+                createFallbackMapView();
                 return;
             }
             
@@ -2842,6 +2961,12 @@
         
         // Update map with current data
         function updateMapWithCurrentData() {
+            // If we're in fallback mode or no Google Maps, refresh the fallback view
+            if (!window.google || !window.google.maps || apiStatus.status === 'fallback') {
+                createFallbackMapView();
+                return;
+            }
+            
             if (!assetMap || !assets.length) return;
             
             // Calculate scores for all assets if not already done
