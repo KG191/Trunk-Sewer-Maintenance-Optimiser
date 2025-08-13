@@ -1982,7 +1982,7 @@
                     'lng': 'lng', // Short form longitude
                     'lon': 'lng', // Alternative longitude
                     'latitude and longitude': 'coordinates', // Combined lat/lng in DMS format
-                    'coordinates': 'coordinates' // Alternative combined format
+                    'coordinates': 'coordinates', // Alternative combined format
                     'y_coord': 'y',
                     'xcoord': 'x',
                     'ycoord': 'y'
@@ -3277,7 +3277,6 @@
                 infoWindows.push(infoWindow);
                 
                 // Extend bounds
-                const position = getAssetPosition(asset);
                 if (position) bounds.extend(position);
             });
             
