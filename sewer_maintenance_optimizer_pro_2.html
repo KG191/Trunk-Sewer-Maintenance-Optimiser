@@ -1651,7 +1651,7 @@
                     'ycoord': 'y'
                 };
                 
-                const requiredFields = ['id', 'length', 'diameter', 'riskCategory', 'accessScore', 'bypassRequired', 'mobilizationComplexity', 'x', 'y'];
+                const requiredFields = ['id', 'length', 'diameter', 'riskCategory', 'accessScore', 'bypassRequired', 'x', 'y'];
                 
                 const missingCols = requiredFields.filter(field => {
                     const mappedField = Object.keys(columnMapping).find(key => columnMapping[key] === field);
@@ -1728,6 +1728,11 @@
                     // Set default recommended year if not provided
                     if (!asset.recommendedYear) {
                         asset.recommendedYear = new Date().getFullYear();
+                    }
+                    
+                    // Pro 2.0: Set default mobilization complexity if not provided
+                    if (!asset.mobilizationComplexity) {
+                        asset.mobilizationComplexity = 2; // Default to moderate complexity
                     }
                     
                     // New Pro 2.0: Calculate network connectivity metrics
