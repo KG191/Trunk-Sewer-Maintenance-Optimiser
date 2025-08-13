@@ -859,8 +859,8 @@
                                     <th style="padding: 6px; border: 1px solid var(--border-color); text-align: center;">Access score</th>
                                     <th style="padding: 6px; border: 1px solid var(--border-color); text-align: center;">Bypass required</th>
                                     <th style="padding: 6px; border: 1px solid var(--border-color); text-align: center;">Mobilization complexity</th>
-                                    <th style="padding: 6px; border: 1px solid var(--border-color); text-align: center;">X_Coord</th>
-                                    <th style="padding: 6px; border: 1px solid var(--border-color); text-align: center;">Y_Coord</th>
+                                    <th style="padding: 6px; border: 1px solid var(--border-color); text-align: center;">Latitude</th>
+                                    <th style="padding: 6px; border: 1px solid var(--border-color); text-align: center;">Longitude</th>
                                 </tr>
                             </table>
                         </div>
@@ -1871,6 +1871,48 @@
             }
         }
         
+        // Function to parse DMS (Degrees, Minutes, Seconds) coordinates
+        function parseDMSCoordinates(dmsString) {
+            if (!dmsString || typeof dmsString !== 'string') return null;
+            
+            try {
+                // Clean the string - handle CSV format with � symbols and quotes
+                const cleaned = dmsString.trim()
+                    .replace(/"/g, '') // Remove all quote marks
+                    .replace(/�/g, '°'); // Replace � with degree symbol
+                
+                // Pattern to match: 27°42'52.1S 153°11'58.6E format
+                const dmsPattern = /(\d+)°(\d+)'([\d.]+)([NSEW])\s+(\d+)°(\d+)'([\d.]+)([NSEW])/i;
+                const match = cleaned.match(dmsPattern);
+                
+                if (!match) {
+                    console.warn('Could not parse DMS coordinates:', dmsString, 'cleaned to:', cleaned);
+                    return null;
+                }
+                
+                const [, deg1, min1, sec1, dir1, deg2, min2, sec2, dir2] = match;
+                
+                // Convert DMS to decimal degrees
+                const coord1 = parseInt(deg1) + parseInt(min1)/60 + parseFloat(sec1)/3600;
+                const coord2 = parseInt(deg2) + parseInt(min2)/60 + parseFloat(sec2)/3600;
+                
+                // Determine which is latitude and which is longitude
+                let lat, lng;
+                if (dir1.toUpperCase() === 'N' || dir1.toUpperCase() === 'S') {
+                    lat = dir1.toUpperCase() === 'S' ? -coord1 : coord1;
+                    lng = dir2.toUpperCase() === 'W' ? -coord2 : coord2;
+                } else {
+                    lng = dir1.toUpperCase() === 'W' ? -coord1 : coord1;
+                    lat = dir2.toUpperCase() === 'S' ? -coord2 : coord2;
+                }
+                
+                return { lat, lng };
+            } catch (error) {
+                console.error('Error parsing DMS coordinates:', dmsString, error);
+                return null;
+            }
+        }
+        
         function parseCSVFile(file) {
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -1901,7 +1943,15 @@
                     'adjacent suburb': 'suburb', // New: geographic grouping
                     'connected mains (<200m)': 'connectedMains', // New: network connectivity
                     'number of mains within a catchment': 'catchmentMains', // New: catchment analysis
-                    'x_coord': 'x',
+                    'x_coord': 'x', // Legacy support for X coordinates
+                    'xcoord': 'x', // Legacy support
+                    'latitude': 'lat', // New: latitude coordinate
+                    'lat': 'lat', // Short form latitude
+                    'longitude': 'lng', // New: longitude coordinate
+                    'lng': 'lng', // Short form longitude
+                    'lon': 'lng', // Alternative longitude
+                    'latitude and longitude': 'coordinates', // Combined lat/lng in DMS format
+                    'coordinates': 'coordinates' // Alternative combined format
                     'y_coord': 'y',
                     'xcoord': 'x',
                     'ycoord': 'y'
@@ -1970,6 +2020,16 @@
                         else if (cleanHeader.includes('adjacent') || cleanHeader.includes('suburb')) asset.suburb = parseInt(value) || 0;
                         else if (cleanHeader.includes('connected') && cleanHeader.includes('mains')) asset.connectedMains = parseInt(value) || 0;
                         else if (cleanHeader.includes('number') && cleanHeader.includes('mains') && cleanHeader.includes('catchment')) asset.catchmentMains = parseInt(value) || 0;
+                        // Handle coordinates - support DMS format, decimal lat/lng, and legacy X/Y
+                        else if (cleanHeader.includes('latitude and longitude') || cleanHeader.includes('coordinates')) {
+                            const coords = parseDMSCoordinates(value);
+                            if (coords) {
+                                asset.lat = coords.lat;
+                                asset.lng = coords.lng;
+                            }
+                        }
+                        else if (cleanHeader.includes('latitude') || cleanHeader.includes('lat')) asset.lat = parseFloat(value) || 0;
+                        else if (cleanHeader.includes('longitude') || cleanHeader.includes('lng') || cleanHeader.includes('lon')) asset.lng = parseFloat(value) || 0;
                         else if (cleanHeader.includes('xcoord') || cleanHeader.includes('x_coord') || cleanHeader.includes('x')) asset.x = parseFloat(value) || 0;
                         else if (cleanHeader.includes('ycoord') || cleanHeader.includes('y_coord') || cleanHeader.includes('y')) asset.y = parseFloat(value) || 0;
                     });
@@ -2023,7 +2083,7 @@
                         console.log('Skipped asset:', asset.id, 'Missing:', {
                             length: !asset.length,
                             diameter: !asset.diameter,
-                            coordinates: !asset.x || !asset.y
+                            coordinates: (!asset.lat || !asset.lng) && (!asset.x || !asset.y)
                         });
                     }
                 }
@@ -2051,22 +2111,22 @@
         }
         
         function downloadSampleTemplate() {
-            const csvContent = 'Asset ID,Length (m),Size,Risk Rating,Recommended Year for Maintenance,Access score,Bypass required,Adjacent suburb,Connected mains (<200m),Number of mains within a catchment,Risk,X_Coord,Y_Coord\n' +
-                'TM-001,450,600,High,2024,6,N,1,5,4,15,1250.5,2300.8\n' +
-                'TM-002,620,750,Very High,2024,8,N,2,3,6,20,1850.2,1950.4\n' +
-                'TM-003,380,900,Moderate,2025,4,Y,3,2,3,10,980.7,2800.1\n' +
-                'TM-004,720,600,Extreme,2024,9,N,1,6,8,25,2100.3,1200.6\n' +
-                'TM-005,290,750,High,2025,7,Y,2,4,5,15,1600.9,2600.3\n' +
-                'TM-006,510,600,Very High,2024,5,Y,3,4,7,20,2850.3,1850.2\n' +
-                'TM-007,340,900,Low,2026,9,N,1,1,2,5,3200.1,2400.7\n' +
-                'TM-008,680,750,Extreme,2024,3,Y,4,5,6,25,1650.8,3100.5\n' +
-                'TM-009,420,600,Moderate,2025,7,N,2,3,4,10,2950.4,1750.9\n' +
-                'TM-010,590,900,High,2025,6,Y,3,6,5,15,1450.7,2850.3\n' +
-                'TM-011,360,750,Very High,2024,4,N,4,2,8,20,3450.2,1550.8\n' +
-                'TM-012,750,600,Extreme,2024,8,Y,1,7,9,25,1850.5,2950.1\n' +
-                'TM-013,480,900,Moderate,2025,6,N,2,3,3,10,2650.9,2150.4\n' +
-                'TM-014,320,750,High,2026,7,Y,3,4,4,15,3150.6,1850.7\n' +
-                'TM-015,640,600,Very High,2026,5,N,4,5,6,20,1950.3,3250.2';
+            const csvContent = 'Asset ID,Length (m),Size,Risk Rating,Recommended Year for Maintenance,Access score,Bypass required,Adjacent suburb,Connected mains (<200m),Number of mains within a catchment,Risk,Latitude and longitude\n' +
+                'TM-001,450,600,High,2024,6,N,1,5,4,15,"37°48\'49.0\"S 144°57\'47.2\"E"\n' +
+                'TM-002,620,750,Very High,2024,8,N,2,3,6,20,"37°48\'56.2\"S 144°57\'54.4\"E"\n' +
+                'TM-003,380,900,Moderate,2025,4,Y,3,2,3,10,"37°48\'41.8\"S 144°57\'40.0\"E"\n' +
+                'TM-004,720,600,Extreme,2024,9,N,1,6,8,25,"37°49\'03.4\"S 144°58\'01.6\"E"\n' +
+                'TM-005,290,750,High,2025,7,Y,2,4,5,15,"37°48\'34.6\"S 144°57\'32.8\"E"\n' +
+                'TM-006,510,600,Very High,2024,5,Y,3,4,7,20,"37°49\'17.8\"S 144°58\'15.6\"E"\n' +
+                'TM-007,340,900,Low,2026,9,N,1,1,2,5,"37°48\'27.4\"S 144°57\'25.6\"E"\n' +
+                'TM-008,680,750,Extreme,2024,3,Y,4,5,6,25,"37°49\'24.5\"S 144°58\'23.2\"E"\n' +
+                'TM-009,420,600,Moderate,2025,7,N,2,3,4,10,"37°49\'10.6\"S 144°58\'08.8\"E"\n' +
+                'TM-010,590,900,High,2025,6,Y,3,6,5,15,"37°49\'32.2\"S 144°58\'30.4\"E"\n' +
+                'TM-011,360,750,Very High,2024,4,N,4,2,8,20,"37°48\'13.0\"S 144°57\'18.4\"E"\n' +
+                'TM-012,750,600,Extreme,2024,8,Y,1,7,9,25,"37°49\'39.7\"S 144°58\'37.6\"E"\n' +
+                'TM-013,480,900,Moderate,2025,6,N,2,3,3,10,"37°48\'05.8\"S 144°57\'11.2\"E"\n' +
+                'TM-014,320,750,High,2026,7,Y,3,4,4,15,"37°49\'46.6\"S 144°58\'44.8\"E"\n' +
+                'TM-015,640,600,Very High,2026,5,N,4,5,6,20,"37°47\'58.6\"S 144°57\'04.0\"E"';
             
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
@@ -2622,10 +2682,7 @@
                 // Fallback to simple distance calculation if Google Maps not available
                 return yearlyAssets.filter(scheduled => {
                     if (scheduled.id === currentAsset.id) return false;
-                    const distance = Math.sqrt(
-                        Math.pow((currentAsset.x - scheduled.x) * 111000, 2) + 
-                        Math.pow((currentAsset.y - scheduled.y) * 111000 * Math.cos(currentAsset.x * Math.PI / 180), 2)
-                    );
+                    const distance = calculateDistanceBetweenAssets(currentAsset, scheduled);
                     return distance <= 500 && currentAsset.diameterCategory === scheduled.diameterCategory;
                 });
             }
@@ -2660,10 +2717,7 @@
                 // Fallback calculation
                 return yearlyAssets.filter(scheduled => {
                     if (scheduled.id === currentAsset.id) return false;
-                    const distance = Math.sqrt(
-                        Math.pow((currentAsset.x - scheduled.x) * 111000, 2) + 
-                        Math.pow((currentAsset.y - scheduled.y) * 111000 * Math.cos(currentAsset.x * Math.PI / 180), 2)
-                    );
+                    const distance = calculateDistanceBetweenAssets(currentAsset, scheduled);
                     return distance <= 500 && currentAsset.diameterCategory === scheduled.diameterCategory;
                 });
             }
@@ -2960,8 +3014,8 @@
                             ${isScheduled ? '<span style="color: #4ade80; font-size: 11px;">📅 SCHEDULED</span>' : ''}
                         </div>
                         <div style="text-align: right; opacity: 0.8; font-size: 11px;">
-                            <div>X: ${asset.x ? asset.x.toFixed(1) : 'N/A'}</div>
-                            <div>Y: ${asset.y ? asset.y.toFixed(1) : 'N/A'}</div>
+                            <div>Lat: ${asset.lat ? asset.lat.toFixed(6) : (asset.x ? asset.x.toFixed(1) : 'N/A')}</div>
+                            <div>Lng: ${asset.lng ? asset.lng.toFixed(6) : (asset.y ? asset.y.toFixed(1) : 'N/A')}</div>
                         </div>
                     </div>
                 `;
@@ -3107,6 +3161,48 @@
             updatePriorityRanking(assetsWithScores);
         }
         
+        // Helper function to get asset position (supports both lat/lng and legacy x/y)
+        function getAssetPosition(asset) {
+            // Prefer latitude/longitude coordinates
+            if (asset.lat && asset.lng) {
+                return { lat: parseFloat(asset.lat), lng: parseFloat(asset.lng) };
+            }
+            // Fallback to legacy x/y coordinates (assume they need coordinate system conversion)
+            else if (asset.x && asset.y) {
+                // For legacy coordinates, we'll assume they're in a projected coordinate system
+                // This is a simplified conversion - in production, you'd use proper coordinate transformation
+                console.warn(`Asset ${asset.id} using legacy X/Y coordinates. Consider updating to lat/lng.`);
+                return { lat: parseFloat(asset.x), lng: parseFloat(asset.y) };
+            }
+            return null;
+        }
+        
+        // Calculate distance between two assets (supports both lat/lng and legacy x/y)
+        function calculateDistanceBetweenAssets(asset1, asset2) {
+            // Get positions for both assets
+            const pos1 = getAssetPosition(asset1);
+            const pos2 = getAssetPosition(asset2);
+            
+            if (!pos1 || !pos2) {
+                console.warn('Cannot calculate distance: missing coordinates for assets', asset1.id, asset2.id);
+                return Number.MAX_VALUE; // Return large number to exclude from proximity
+            }
+            
+            // Use Haversine formula for accurate distance calculation
+            const R = 6371000; // Earth's radius in meters
+            const φ1 = pos1.lat * Math.PI / 180; // φ, λ in radians
+            const φ2 = pos2.lat * Math.PI / 180;
+            const Δφ = (pos2.lat - pos1.lat) * Math.PI / 180;
+            const Δλ = (pos2.lng - pos1.lng) * Math.PI / 180;
+            
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            
+            return R * c; // Distance in meters
+        }
+        
         // Create priority-based markers
         function createAssetMarkers(assets) {
             // Clear existing markers
@@ -3121,9 +3217,12 @@
                 const priority = getPriorityLevel(asset.totalScore);
                 const isScheduled = asset.year !== undefined;
                 
-                // Create marker with priority-based styling
+                // Create marker with priority-based styling - use lat/lng if available, fallback to legacy x/y
+                const position = getAssetPosition(asset);
+                if (!position) return; // Skip assets without valid coordinates
+                
                 const marker = new google.maps.Marker({
-                    position: { lat: asset.x || asset.lat, lng: asset.y || asset.lng },
+                    position: position,
                     map: assetMap,
                     title: `${asset.id} - ${priority} Priority`,
                     icon: createPriorityMarker(priority, isScheduled),
@@ -3147,7 +3246,8 @@
                 infoWindows.push(infoWindow);
                 
                 // Extend bounds
-                bounds.extend({ lat: asset.x || asset.lat, lng: asset.y || asset.lng });
+                const position = getAssetPosition(asset);
+                if (position) bounds.extend(position);
             });
             
             // Fit map to show all markers
@@ -3576,8 +3676,8 @@
                 const totalScore = asset.technicalScore || calculateGlobalPriorityScore(asset, scheduleYear);
                 return {
                     id: asset.id,
-                    lat: asset.x || asset.lat,
-                    lng: asset.y || asset.lng,
+                    lat: asset.lat || asset.x, // Prefer latitude over legacy x coordinate
+                    lng: asset.lng || asset.y, // Prefer longitude over legacy y coordinate
                     priority: getPriorityLevel(totalScore),
                     totalScore: Math.round(totalScore),
                     riskScore: asset.riskScore,
