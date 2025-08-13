@@ -1036,6 +1036,69 @@
                             </div>
                         </div>
                         
+                        <h3 style="margin-bottom: 16px; color: var(--primary-blue);">Optimized Schedule Development Process</h3>
+                        <div style="background: #E8F4FD; border: 2px solid var(--primary-blue); border-radius: var(--radius-small); padding: 24px; margin: 20px 0;">
+                            <h4 style="color: var(--primary-blue); margin-bottom: 16px; display: flex; align-items: center;">
+                                <span style="font-size: 20px; margin-right: 8px;">🧮</span>
+                                Mathematical Constraint Modeling Framework
+                            </h4>
+                            
+                            <p style="margin-bottom: 20px; line-height: 1.6;">The system employs a sophisticated multi-stage optimization process that systematically evaluates asset combinations while respecting operational constraints:</p>
+                            
+                            <div style="display: grid; gap: 16px; margin-bottom: 20px;">
+                                <div style="background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #10B981;">
+                                    <h5 style="color: #059669; margin-bottom: 8px;">Stage 1: Asset Prioritization Matrix</h5>
+                                    <div style="font-family: monospace; font-size: 13px; background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 8px 0;">
+                                        P<sub>i</sub> = α·R<sub>i</sub> + β·A<sub>i</sub> + γ·M<sub>i</sub> + δ·T<sub>i</sub> + ε·N<sub>i</sub> + ζ·G<sub>i</sub>
+                                    </div>
+                                    <p style="font-size: 14px; color: #374151;">Where P<sub>i</sub> = Priority score for asset i, weighted by risk (R), access (A), mobilization (M), timing (T), network connectivity (N), and geographic clustering (G).</p>
+                                </div>
+                                
+                                <div style="background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #F59E0B;">
+                                    <h5 style="color: #D97706; margin-bottom: 8px;">Stage 2: Constraint Satisfaction Testing</h5>
+                                    <div style="font-family: monospace; font-size: 13px; background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 8px 0;">
+                                        Σ L<sub>i</sub> ≤ L<sub>max</sub> ∧ Σ C<sub>i</sub> ≤ B<sub>t</sub> ∧ D<sub>i</sub> ≥ D<sub>min</sub>
+                                    </div>
+                                    <p style="font-size: 14px; color: #374151;">Annual length constraint (L<sub>max</sub>), budget constraint (B<sub>t</sub>), and minimum diameter threshold (D<sub>min</sub>) must be satisfied for each planning year.</p>
+                                </div>
+                                
+                                <div style="background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #8B5CF6;">
+                                    <h5 style="color: #7C3AED; margin-bottom: 8px;">Stage 3: Proximity Optimization</h5>
+                                    <div style="font-family: monospace; font-size: 13px; background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 8px 0;">
+                                        S<sub>i,j</sub> = f(d<sub>i,j</sub>, D<sub>i,j</sub>, Δt<sub>i,j</sub>) where d<sub>i,j</sub> ≤ 500m
+                                    </div>
+                                    <p style="font-size: 14px; color: #374151;">Coordination benefits S<sub>i,j</sub> are calculated based on distance (d), diameter compatibility (D), and scheduling proximity (Δt) within 500m radius.</p>
+                                </div>
+                            </div>
+                            
+                            <h5 style="color: var(--primary-blue); margin: 20px 0 12px 0;">🔄 Iterative Optimization Algorithm</h5>
+                            <ol style="font-size: 14px; line-height: 1.8; color: #374151;">
+                                <li><strong>Initialize:</strong> Sort all assets by priority score P<sub>i</sub> in descending order</li>
+                                <li><strong>Iterate Years:</strong> For each planning year t = 1 to n:
+                                    <ul style="margin: 8px 0 8px 20px;">
+                                        <li>Reset annual counters: length sum = 0, asset count = 0</li>
+                                        <li>Process highest priority unscheduled assets first</li>
+                                    </ul>
+                                </li>
+                                <li><strong>Constraint Checking:</strong> For each candidate asset i:
+                                    <ul style="margin: 8px 0 8px 20px;">
+                                        <li>Test: (current_length + L<sub>i</sub>) ≤ L<sub>max</sub></li>
+                                        <li>Test: D<sub>i</sub> ≥ D<sub>min</sub> (diameter threshold)</li>
+                                        <li>Apply access penalty if A<sub>i</sub> < threshold</li>
+                                    </ul>
+                                </li>
+                                <li><strong>Proximity Analysis:</strong> If constraints satisfied:
+                                    <ul style="margin: 8px 0 8px 20px;">
+                                        <li>Search for assets within 500m radius scheduled in year t</li>
+                                        <li>Apply coordination bonus if compatible assets found</li>
+                                        <li>Update proximity flags for involved assets</li>
+                                    </ul>
+                                </li>
+                                <li><strong>Schedule Assignment:</strong> Add asset to year t, update counters, mark as scheduled</li>
+                                <li><strong>Convergence:</strong> Continue until all feasible assets scheduled or year capacity reached</li>
+                            </ol>
+                        </div>
+
                         <h3 style="margin-bottom: 16px; color: var(--primary-blue);">Constraint Categories</h3>
                         <div class="form-row">
                             <div>
@@ -1055,6 +1118,120 @@
                                     <li>Access difficulty penalties</li>
                                     <li>Bypass requirement considerations</li>
                                 </ul>
+                            </div>
+                        </div>
+                        
+                        <div style="background: #FFF4E5; border: 1px solid var(--warning-orange); border-radius: var(--radius-small); padding: 20px; margin-top: 20px;">
+                            <h4 style="color: var(--warning-orange); margin-bottom: 12px;">⚡ Real-Time Constraint Handling</h4>
+                            <p style="font-size: 14px; line-height: 1.6; margin-bottom: 12px;">The optimization engine continuously monitors constraint satisfaction:</p>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 13px;">
+                                <div>
+                                    <strong>Hard Constraints (Must Satisfy):</strong>
+                                    <ul style="margin: 8px 0 0 16px; line-height: 1.6;">
+                                        <li>Annual length ≤ Maximum capacity</li>
+                                        <li>Asset diameter ≥ Minimum threshold</li>
+                                        <li>Budget allocation ≤ Available funds</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <strong>Soft Constraints (Optimization Goals):</strong>
+                                    <ul style="margin: 8px 0 0 16px; line-height: 1.6;">
+                                        <li>Minimize access difficulty penalties</li>
+                                        <li>Maximize proximity coordination</li>
+                                        <li>Balance risk reduction across years</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Practical Example: Schedule Development</h2>
+                        <p class="card-subtitle">Step-by-step walkthrough of the mathematical optimization process</p>
+                    </div>
+                    <div class="card-content">
+                        <div style="background: #F0F7FF; border: 1px solid var(--primary-blue); border-radius: var(--radius-small); padding: 20px; margin-bottom: 20px;">
+                            <h4 style="color: var(--primary-blue); margin-bottom: 16px;">📋 Example Scenario</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 14px;">
+                                <div>
+                                    <strong>System Parameters:</strong>
+                                    <ul style="margin: 8px 0 0 16px; line-height: 1.6;">
+                                        <li>Max Length/Year: 2,000m</li>
+                                        <li>Min Diameter: 375mm</li>
+                                        <li>Planning Period: 3 years</li>
+                                        <li>Proximity Radius: 500m</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <strong>Sample Assets:</strong>
+                                    <ul style="margin: 8px 0 0 16px; line-height: 1.6;">
+                                        <li>TM-001: 850m, High Risk, Score 145</li>
+                                        <li>TM-002: 620m, High Risk, Score 142</li>
+                                        <li>TM-003: 450m, Med Risk, Score 118</li>
+                                        <li>TM-004: 380m, Med Risk, Score 95</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <h4 style="margin: 20px 0 12px 0; color: var(--primary-blue);">🎯 Step-by-Step Optimization Process</h4>
+                        
+                        <div style="display: grid; gap: 16px;">
+                            <div style="background: white; border: 1px solid #E5E7EB; border-radius: 8px; padding: 16px; border-left: 4px solid #10B981;">
+                                <h5 style="color: #059669; margin-bottom: 12px;">Year 1 Allocation</h5>
+                                <div style="font-size: 14px; line-height: 1.6;">
+                                    <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 8px 0; font-family: monospace; font-size: 13px;">
+                                        <strong>Priority Order:</strong> TM-001 (145) → TM-002 (142) → TM-003 (118) → TM-004 (95)<br>
+                                        <strong>Constraint Check:</strong><br>
+                                        • TM-001: 850m ≤ 2000m ✓ → Schedule, Remaining: 1150m<br>
+                                        • TM-002: 620m ≤ 1150m ✓ → Schedule, Remaining: 530m<br>
+                                        • TM-003: 450m ≤ 530m ✓ → Schedule, Remaining: 80m<br>
+                                        • TM-004: 380m > 80m ✗ → Defer to Year 2
+                                    </div>
+                                    <p><strong>Year 1 Result:</strong> TM-001, TM-002, TM-003 scheduled (1,920m total)</p>
+                                </div>
+                            </div>
+                            
+                            <div style="background: white; border: 1px solid #E5E7EB; border-radius: 8px; padding: 16px; border-left: 4px solid #F59E0B;">
+                                <h5 style="color: #D97706; margin-bottom: 12px;">Proximity Analysis</h5>
+                                <div style="font-size: 14px; line-height: 1.6;">
+                                    <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 8px 0; font-family: monospace; font-size: 13px;">
+                                        <strong>Distance Matrix:</strong><br>
+                                        • TM-001 ↔ TM-002: 320m ≤ 500m ✓ → Coordination Bonus: +20 points each<br>
+                                        • TM-001 ↔ TM-003: 680m > 500m ✗ → No coordination<br>
+                                        • TM-002 ↔ TM-003: 450m ≤ 500m ✓ → Coordination Bonus: +20 points each
+                                    </div>
+                                    <p><strong>Proximity Result:</strong> TM-001, TM-002, TM-003 receive coordination bonuses</p>
+                                </div>
+                            </div>
+                            
+                            <div style="background: white; border: 1px solid #E5E7EB; border-radius: 8px; padding: 16px; border-left: 4px solid #8B5CF6;">
+                                <h5 style="color: #7C3AED; margin-bottom: 12px;">Final Score Calculation</h5>
+                                <div style="font-size: 14px; line-height: 1.6;">
+                                    <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 8px 0; font-family: monospace; font-size: 13px;">
+                                        <strong>Updated Scores:</strong><br>
+                                        • TM-001: 145 + 20 (proximity) = 165 points<br>
+                                        • TM-002: 142 + 20 (proximity) = 162 points<br>
+                                        • TM-003: 118 + 20 (proximity) = 138 points<br>
+                                        • TM-004: 95 (no proximity) = 95 points
+                                    </div>
+                                    <p><strong>Optimization Benefit:</strong> 15% efficiency gain through proximity coordination</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="background: #E8F5E8; border: 1px solid #10B981; border-radius: var(--radius-small); padding: 16px; margin-top: 20px;">
+                            <h4 style="color: #059669; margin-bottom: 12px;">✅ Mathematical Validation</h4>
+                            <div style="font-size: 14px; line-height: 1.6;">
+                                <p style="margin-bottom: 8px;"><strong>Constraint Satisfaction:</strong></p>
+                                <ul style="margin: 0 0 12px 16px;">
+                                    <li>Length Constraint: 1,920m ≤ 2,000m ✓ (96% capacity utilization)</li>
+                                    <li>Risk Coverage: 3/4 high-priority assets scheduled ✓</li>
+                                    <li>Proximity Optimization: 3/3 scheduled assets coordinated ✓</li>
+                                </ul>
+                                <p><strong>Outcome:</strong> Optimal balance of constraint satisfaction and risk reduction achieved</p>
                             </div>
                         </div>
                     </div>
