@@ -1388,6 +1388,21 @@
         let dataSource = 'none';
         let currentTab = 'introduction';
         
+        // Suppress Google Maps InvalidKey warnings globally for better UX
+        (function() {
+            const originalWarn = console.warn;
+            console.warn = function(...args) {
+                if (args[0] && typeof args[0] === 'string' && 
+                    (args[0].includes('InvalidKey') || 
+                     args[0].includes('google.maps.Marker is deprecated') ||
+                     args[0].includes('InvalidKeyMapError'))) {
+                    // Silently ignore Google Maps API warnings for better UX
+                    return;
+                }
+                originalWarn.apply(console, args);
+            };
+        })();
+        
         // Google Maps API Status Management
         const apiStatus = {
             status: 'unknown', // 'active', 'fallback', 'error'
@@ -1405,6 +1420,17 @@
         
         // Google Maps API Initialization Callback
         window.initGoogleMaps = function() {
+            // Check for placeholder API key
+            const scriptSrc = document.querySelector('script[src*="googleapis.com"]')?.src || '';
+            const hasPlaceholderKey = scriptSrc.includes('key=YOUR_API_KEY');
+            
+            if (hasPlaceholderKey) {
+                updateApiStatus('fallback', 'Placeholder API key detected - using fallback calculations');
+                showNotification('🔑 Google Maps API key not configured. Using mathematical calculations.', 'info');
+                console.log('Google Maps API key placeholder detected - using fallback mode');
+                return;
+            }
+            
             try {
                 // Test API functionality
                 const testLocation = new google.maps.LatLng(0, 0);
@@ -1417,25 +1443,12 @@
                 showNotification('✅ Google Maps API loaded successfully', 'success');
                 console.log('Google Maps API initialized successfully');
                 
-                // Suppress the deprecated Marker warning (migration to AdvancedMarkerElement planned)
-                if (console.warn) {
-                    const originalWarn = console.warn;
-                    console.warn = function(...args) {
-                        if (args[0] && typeof args[0] === 'string' && 
-                            args[0].includes('google.maps.Marker is deprecated')) {
-                            // Silently ignore the deprecation warning for now
-                            return;
-                        }
-                        originalWarn.apply(console, args);
-                    };
-                }
-                
             } catch (error) {
                 // API failed to load or function properly
                 let errorMsg = 'API initialization failed';
                 let notification = '⚠️ Google Maps API unavailable. Using fallback calculations.';
                 
-                if (error.message && error.message.includes('InvalidKey')) {
+                if (error.message && (error.message.includes('InvalidKey') || error.message.includes('API key'))) {
                     errorMsg = 'Invalid API key - check configuration';
                     notification = '🔑 Google Maps API key invalid. Using fallback calculations.';
                 }
@@ -2472,6 +2485,25 @@
         // Initialize Google Maps for asset visualization
         function initializeAssetMap() {
             if (!document.getElementById('assetMap')) return;
+            
+            // Check if Google Maps is available and API status
+            if (!window.google || !window.google.maps || apiStatus.status === 'fallback') {
+                const mapElement = document.getElementById('assetMap');
+                mapElement.innerHTML = `
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; background: #f8f9fa; border-radius: 8px; padding: 40px;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">🗺️</div>
+                        <h3 style="color: #666; margin-bottom: 12px;">Map View Unavailable</h3>
+                        <p style="color: #888; text-align: center; max-width: 400px;">
+                            Google Maps API is not available. The system is using mathematical calculations for proximity detection.
+                            All optimization features remain fully functional.
+                        </p>
+                        <div style="margin-top: 20px; padding: 12px 24px; background: #e3f2fd; border-radius: 6px; color: #1976d2;">
+                            📊 Fallback Mode Active - No Visual Impact on Results
+                        </div>
+                    </div>
+                `;
+                return;
+            }
             
             try {
                 // Initialize Google Map
