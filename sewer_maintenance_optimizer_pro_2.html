@@ -673,6 +673,32 @@
             document.head.appendChild(script);
         }
         
+        // Reload Google Maps API with new key
+        function reloadGoogleMapsAPI() {
+            // Remove existing Google Maps scripts
+            const existingScripts = document.querySelectorAll('script[src*="maps.googleapis.com"]');
+            existingScripts.forEach(script => script.remove());
+            
+            // Clear Google Maps objects
+            if (window.google) {
+                window.google = undefined;
+            }
+            if (typeof assetMap !== 'undefined') assetMap = null;
+            if (typeof markers !== 'undefined') markers = [];
+            if (typeof infoWindows !== 'undefined') infoWindows = [];
+            
+            // Update configuration with stored API key
+            const storedKey = localStorage.getItem('gmaps_api_key');
+            if (storedKey) {
+                GOOGLE_MAPS_CONFIG.API_KEY = storedKey;
+            }
+            
+            // Reload the API
+            loadGoogleMapsAPI();
+            
+            showNotification('🗺️ Google Maps API reloaded successfully!', 'success');
+        }
+        
         // Load API when page loads
         document.addEventListener('DOMContentLoaded', loadGoogleMapsAPI);
     </script>
@@ -2328,12 +2354,35 @@
             let schedule = [];
             let totalRiskCoverage = 0;
             
+            // Calculate total available capacity across planning period
+            const totalCapacity = maxLength * planningPeriods;
+            const totalAssetLength = assets.filter(asset => asset.diameter >= minDiameter)
+                                          .reduce((sum, asset) => sum + asset.length, 0);
+            
+            // Adaptive capacity allocation: if total assets exceed capacity, maintain annual limits
+            // If total assets fit within capacity, distribute more evenly across years
+            const shouldAdaptCapacity = totalAssetLength <= totalCapacity;
+            let adaptiveMaxLength = shouldAdaptCapacity ? Math.ceil(totalAssetLength / planningPeriods) : maxLength;
+            
             setTimeout(() => {
                 updateProgress(25);
+                
+                // Track cumulative capacity usage for adaptive allocation
+                let cumulativeCapacityUsed = 0;
                 
                 for (let year = 1; year <= planningPeriods; year++) {
                     let yearlyLength = 0; // Track total length scheduled this year
                     let yearlyAssets = [];
+                    
+                    // Calculate dynamic capacity for this year
+                    const baseCapacity = adaptiveMaxLength;
+                    const remainingCapacity = totalCapacity - cumulativeCapacityUsed;
+                    const remainingYears = planningPeriods - year + 1;
+                    
+                    // Allow using more capacity if needed and available
+                    const dynamicCapacity = shouldAdaptCapacity && remainingYears > 1 ? 
+                        Math.min(baseCapacity * 1.5, remainingCapacity - (remainingYears - 1) * (baseCapacity * 0.5)) : 
+                        Math.min(baseCapacity, remainingCapacity);
                     
                     // Filter and sort remaining assets
                     const remainingAssets = assets.filter(asset => {
@@ -2407,7 +2456,7 @@
                         const proximateAssets = findProximateAssets(asset, yearlyAssets, schedule, year, proximityRadius);
                         
                         // Check if asset can be scheduled based on annual length limit
-                        if (yearlyLength + asset.length <= maxLength) {
+                        if (yearlyLength + asset.length <= dynamicCapacity) {
                             const drivers = getTechnicalSchedulingDrivers(asset, year);
                             
                             yearlyAssets.push({
@@ -2425,11 +2474,15 @@
                             }
                             
                             // Stop if length limit is nearly reached
-                            if ((maxLength - yearlyLength) < 10) break; // Save capacity for minimum 10m asset
+                            if ((dynamicCapacity - yearlyLength) < 10) break; // Save capacity for minimum 10m asset
                         }
                     }
                     
                     schedule = schedule.concat(yearlyAssets);
+                    cumulativeCapacityUsed += yearlyLength;
+                    
+                    // Debug logging for capacity utilization
+                    console.log(`Year ${year}: Scheduled ${yearlyAssets.length} assets, ${yearlyLength}m of ${dynamicCapacity}m capacity (${(yearlyLength/dynamicCapacity*100).toFixed(1)}% utilized)`);
                 }
                 
                 updateProgress(100);
@@ -3113,9 +3166,9 @@
             // Update status
             updateApiKeyStatus();
             
-            // Reload the page to apply the new API key
+            // Reload Google Maps script with new API key
             setTimeout(() => {
-                window.location.reload();
+                reloadGoogleMapsAPI();
             }, 1500);
         }
         
@@ -3128,7 +3181,7 @@
             updateApiKeyStatus();
             
             setTimeout(() => {
-                window.location.reload();
+                reloadGoogleMapsAPI();
             }, 1500);
         }
         
