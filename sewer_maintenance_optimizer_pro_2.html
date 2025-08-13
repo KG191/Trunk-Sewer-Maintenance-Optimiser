@@ -643,10 +643,38 @@
         }
     </style>
     
-    <!-- Google Maps API Script - Loaded with proper async pattern -->
-    <script async defer
-        src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=geometry,marker&callback=initGoogleMaps&loading=async"
-        onerror="handleGoogleMapsError()">
+    <!-- Google Maps API Script - Dynamic loading based on configuration -->
+    <script>
+        // Configuration for Google Maps API
+        const GOOGLE_MAPS_CONFIG = {
+            // Set your API key here for production use
+            API_KEY: process?.env?.GOOGLE_MAPS_API_KEY || localStorage.getItem('gmaps_api_key') || 'YOUR_API_KEY',
+            LIBRARIES: 'geometry,marker',
+            CALLBACK: 'initGoogleMaps'
+        };
+        
+        // Load Google Maps API dynamically
+        function loadGoogleMapsAPI() {
+            // Check if API key is configured
+            if (GOOGLE_MAPS_CONFIG.API_KEY === 'YOUR_API_KEY' || !GOOGLE_MAPS_CONFIG.API_KEY) {
+                console.warn('Google Maps API key not configured - using fallback mode');
+                updateApiStatus('fallback', 'API key not configured');
+                return;
+            }
+            
+            // Create script element
+            const script = document.createElement('script');
+            script.async = true;
+            script.defer = true;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_CONFIG.API_KEY}&libraries=${GOOGLE_MAPS_CONFIG.LIBRARIES}&callback=${GOOGLE_MAPS_CONFIG.CALLBACK}&loading=async`;
+            script.onerror = handleGoogleMapsError;
+            
+            // Add to head
+            document.head.appendChild(script);
+        }
+        
+        // Load API when page loads
+        document.addEventListener('DOMContentLoaded', loadGoogleMapsAPI);
     </script>
 </head>
 <body>
@@ -1498,6 +1526,33 @@
                         <p class="card-subtitle">Geographic visualization of maintenance priorities with interactive filtering</p>
                     </div>
                     <div class="card-content">
+                        <!-- Google Maps API Configuration -->
+                        <div id="apiConfigSection" style="background: #F0F7FF; border: 1px solid var(--primary-blue); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <h4 style="margin: 0; color: var(--primary-blue); display: flex; align-items: center;">
+                                    <span style="margin-right: 8px;">🔑</span>
+                                    Google Maps API Configuration
+                                </h4>
+                                <div id="apiStatusBadge" style="padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
+                                    <!-- Status will be updated dynamically -->
+                                </div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center;">
+                                <input type="text" id="apiKeyInput" placeholder="Enter your Google Maps API key here..." 
+                                       style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 13px;">
+                                <button onclick="configureApiKey()" style="background: var(--primary-blue); color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                                    Configure
+                                </button>
+                                <button onclick="clearApiKey()" style="background: #6B7280; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                                    Clear
+                                </button>
+                            </div>
+                            <p style="margin: 8px 0 0 0; font-size: 12px; color: #666;">
+                                💡 API key is stored locally in your browser. Get your free key from 
+                                <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color: var(--primary-blue);">Google Cloud Console</a>
+                            </p>
+                        </div>
+                        
                         <!-- Priority Summary Stats -->
                         <div id="mapStats" style="margin-bottom: 20px;">
                             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px;">
@@ -2919,11 +2974,78 @@
                 <div style="text-align: left;">
                     <strong>Google Maps API Setup:</strong><br>
                     1. Get API key from Google Cloud Console<br>
-                    2. Replace 'YOUR_API_KEY' in the script tag<br>
+                    2. Use the configuration panel in Mapped Locations tab<br>
                     3. Enable Maps JavaScript API & Geometry Library<br><br>
                     <em>See Technical Notes tab for detailed instructions</em>
                 </div>
             `, 'info');
+        }
+        
+        // Configure API key
+        function configureApiKey() {
+            const apiKeyInput = document.getElementById('apiKeyInput');
+            const apiKey = apiKeyInput.value.trim();
+            
+            if (!apiKey) {
+                showNotification('Please enter a valid API key', 'error');
+                return;
+            }
+            
+            // Store API key in localStorage
+            localStorage.setItem('gmaps_api_key', apiKey);
+            
+            // Update configuration
+            GOOGLE_MAPS_CONFIG.API_KEY = apiKey;
+            
+            // Clear input for security
+            apiKeyInput.value = '';
+            
+            // Show success message
+            showNotification('✅ API key configured successfully! Reloading Google Maps...', 'success');
+            
+            // Update status
+            updateApiKeyStatus();
+            
+            // Reload the page to apply the new API key
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        }
+        
+        // Clear API key
+        function clearApiKey() {
+            localStorage.removeItem('gmaps_api_key');
+            GOOGLE_MAPS_CONFIG.API_KEY = 'YOUR_API_KEY';
+            
+            showNotification('API key cleared. Page will reload...', 'info');
+            updateApiKeyStatus();
+            
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        }
+        
+        // Update API key status display
+        function updateApiKeyStatus() {
+            const statusBadge = document.getElementById('apiStatusBadge');
+            const apiKeyInput = document.getElementById('apiKeyInput');
+            
+            if (!statusBadge) return;
+            
+            const currentKey = localStorage.getItem('gmaps_api_key');
+            const hasValidKey = currentKey && currentKey !== 'YOUR_API_KEY';
+            
+            if (hasValidKey) {
+                statusBadge.innerHTML = '✅ Configured';
+                statusBadge.style.background = '#10B981';
+                statusBadge.style.color = 'white';
+                if (apiKeyInput) apiKeyInput.placeholder = 'API key is configured';
+            } else {
+                statusBadge.innerHTML = '⚠️ Not Configured';
+                statusBadge.style.background = '#F59E0B';
+                statusBadge.style.color = 'white';
+                if (apiKeyInput) apiKeyInput.placeholder = 'Enter your Google Maps API key here...';
+            }
         }
         
         // Initialize Google Maps for asset visualization
@@ -3519,7 +3641,10 @@
             
             // Initialize map when mapped-locations tab is shown
             if (tabId === 'mapped-locations') {
+                // Update API key status display
                 setTimeout(() => {
+                    updateApiKeyStatus();
+                    
                     if (!assetMap) {
                         initializeAssetMap();
                     } else {
