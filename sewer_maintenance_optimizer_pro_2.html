@@ -2284,8 +2284,9 @@
                     <th style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">Risk Rating</th>
                     <th style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">Access</th>
                     <th style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">Bypass</th>
-                    <th style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">Mobilization</th>
-                    <th style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">Proximity</th>
+                    <th style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">Adjacent Suburb</th>
+                    <th style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">Connected Mains</th>
+                    <th style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">Catchment Mains</th>
                     <th style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">Total Score</th>
                 `;
                 table.appendChild(headerRow);
@@ -2310,16 +2311,23 @@
                     if (asset.accessScore >= 7) accessColor = trafficGreen; // Green for good access
                     else if (asset.accessScore >= 4) accessColor = trafficAmber; // Amber for moderate access
                     
-                    // Mobilization color coding (Simple = Green, Moderate = Amber, Complex = Red)
-                    let mobColor = trafficGreen; // Green for simple
-                    if (asset.mobilizationComplexity >= 4) mobColor = trafficRed; // Red for complex
-                    else if (asset.mobilizationComplexity >= 3) mobColor = trafficAmber; // Amber for moderate
-                    
                     // Total score color coding
                     let scoreColor = trafficRed; // Red for low scores
                     const totalScore = asset.technicalScore || 0;
                     if (totalScore >= 120) scoreColor = trafficGreen; // Green for high scores
                     else if (totalScore >= 80) scoreColor = trafficAmber; // Amber for medium scores
+                    
+                    // Color coding for individual criteria
+                    const suburbValue = asset.suburb || 0;
+                    const connectedValue = asset.connectedMains || 0;
+                    const catchmentValue = asset.catchmentMains || 0;
+                    
+                    // Color coding based on values (higher = more complex = redder)
+                    const getNetworkColor = (value) => {
+                        if (value >= 5) return trafficRed;
+                        if (value >= 3) return trafficAmber;
+                        return trafficGreen;
+                    };
                     
                     row.innerHTML = `
                         <td style="padding: 8px; border: 1px solid var(--border-color); font-weight: 500;">${asset.id}</td>
@@ -2334,11 +2342,14 @@
                         <td style="padding: 8px; border: 1px solid var(--border-color); text-align: center; background-color: ${asset.bypassRequired ? trafficRed : trafficGreen}; color: #374151; font-weight: 600;">
                             ${asset.bypassRequired ? 'Required' : 'No'}
                         </td>
-                        <td style="padding: 8px; border: 1px solid var(--border-color); text-align: center; background-color: ${mobColor}; color: #374151; font-weight: 600;">
-                            ${asset.mobilizationComplexity}/5
+                        <td style="padding: 8px; border: 1px solid var(--border-color); text-align: center; background-color: ${getNetworkColor(suburbValue)}; color: #374151; font-weight: 600;">
+                            ${suburbValue}
                         </td>
-                        <td style="padding: 8px; border: 1px solid var(--border-color); text-align: center; background-color: ${asset.proximityBenefit ? trafficGreen : '#F3F4F6'}; color: #374151; font-weight: 600;">
-                            ${asset.proximityBenefit ? '🔗 Yes' : 'No'}
+                        <td style="padding: 8px; border: 1px solid var(--border-color); text-align: center; background-color: ${getNetworkColor(connectedValue)}; color: #374151; font-weight: 600;">
+                            ${connectedValue}
+                        </td>
+                        <td style="padding: 8px; border: 1px solid var(--border-color); text-align: center; background-color: ${getNetworkColor(catchmentValue)}; color: #374151; font-weight: 600;">
+                            ${catchmentValue}
                         </td>
                         <td style="padding: 8px; border: 1px solid var(--border-color); text-align: center; background-color: ${scoreColor}; color: #374151; font-weight: 600;">
                             ${totalScore}
