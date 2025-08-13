@@ -901,16 +901,33 @@
                             </div>
                         </div>
 
-                        <h3 style="margin: 24px 0 16px 0; color: var(--primary-blue);">Mobilization & Proximity</h3>
+                        <h3 style="margin: 24px 0 16px 0; color: var(--primary-blue);">Network Analysis & Proximity</h3>
                         <div class="form-row">
                             <div class="form-group">
                                 <label class="form-label">Mobilization Complexity Threshold (1-5)</label>
                                 <input type="number" id="mobComplexThreshold" class="form-input" min="1" max="5" value="3">
+                                <small class="form-help">Calculated from: Adjacent Suburb + Connected Mains + Catchment Mains</small>
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Proximity Radius (m)</label>
                                 <input type="number" id="proximityRadius" class="form-input" min="100" max="2000" value="500">
                             </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Network Connectivity Weight</label>
+                                <input type="number" id="networkWeight" class="form-input" min="0.1" max="2.0" step="0.1" value="1.0">
+                                <small class="form-help">Multiplier for Connected Mains + Catchment analysis</small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Geographic Clustering Weight</label>
+                                <input type="number" id="clusterWeight" class="form-input" min="0.1" max="2.0" step="0.1" value="1.0">
+                                <small class="form-help">Multiplier for Adjacent Suburb grouping</small>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
                             <div class="form-group">
                                 <label class="form-label">Proximity Coordination Bonus (%)</label>
                                 <input type="number" id="proximityBonus" class="form-input" min="5" max="30" value="15">
@@ -1167,14 +1184,18 @@
                             <p style="margin-top: 8px; font-size: 13px; color: var(--text-secondary);"><em>Higher scores = easier access, with difficult access grouped for operational efficiency</em></p>
                         </div>
 
-                        <h4 style="margin: 16px 0 12px 0; color: var(--primary-blue);">🚚 Mobilization Scoring (1-5 complexity scale)</h4>
+                        <h4 style="margin: 16px 0 12px 0; color: var(--primary-blue);">🚚 Mobilization Scoring (Pro 2.0 Enhanced)</h4>
                         <div style="background: var(--background-tertiary); border-radius: var(--radius-small); padding: 16px; margin-bottom: 16px;">
                             <ul style="color: var(--text-secondary); line-height: 1.7;">
                                 <li><strong>Simple Mobilization (1-2 complexity):</strong> 15 priority points</li>
                                 <li><strong>Moderate Mobilization (3 complexity):</strong> 0 priority points</li>
                                 <li><strong>Complex Mobilization (4-5 complexity):</strong> 5 priority points (grouped coordination)</li>
                             </ul>
-                            <p style="margin-top: 8px; font-size: 13px; color: var(--text-secondary);"><em>Lower complexity = higher efficiency, with complex setups grouped together</em></p>
+                            <p style="margin-top: 8px; font-size: 13px; color: var(--text-secondary);"><em>Pro 2.0: Complexity calculated from (Connected Mains + Catchment Mains) × Network Weight + Adjacent Suburb × Cluster Weight</em></p>
+                            <div style="background: #E8F4FD; border-radius: 4px; padding: 12px; margin-top: 12px;">
+                                <strong>Complexity Thresholds:</strong><br>
+                                <span style="font-size: 12px;">Score ≥12: Very Complex (5) | 9-11: Complex (4) | 6-8: Moderate (3) | 3-5: Simple (2) | <3: Very Simple (1)</span>
+                            </div>
                         </div>
 
                         <h4 style="margin: 16px 0 12px 0; color: var(--primary-blue);">⚡ Bypass Requirements</h4>
@@ -1730,18 +1751,34 @@
                         asset.recommendedYear = new Date().getFullYear();
                     }
                     
-                    // Pro 2.0: Set default mobilization complexity if not provided
-                    if (!asset.mobilizationComplexity) {
-                        asset.mobilizationComplexity = 2; // Default to moderate complexity
-                    }
+                    // New Pro 2.0: Calculate mobilization complexity from geographic and network factors
+                    const suburbFactor = asset.suburb || 0;
+                    const connectedMainsFactor = asset.connectedMains || 0;
+                    const catchmentMainsFactor = asset.catchmentMains || 0;
+                    
+                    // Calculate mobilization complexity (1-5 scale) based on network density and location
+                    // Higher connectivity = higher complexity due to coordination requirements
+                    // Use default weights if form values not available (for CSV parsing)
+                    const networkWeightValue = typeof networkWeight !== 'undefined' ? networkWeight : 1.0;
+                    const clusterWeightValue = typeof clusterWeight !== 'undefined' ? clusterWeight : 1.0;
+                    
+                    const weightedNetworkDensity = (connectedMainsFactor + catchmentMainsFactor) * networkWeightValue;
+                    const weightedGeographicFactor = suburbFactor * clusterWeightValue;
+                    const totalComplexityScore = weightedNetworkDensity + weightedGeographicFactor;
+                    
+                    if (totalComplexityScore >= 12) asset.mobilizationComplexity = 5; // Very complex
+                    else if (totalComplexityScore >= 9) asset.mobilizationComplexity = 4; // Complex
+                    else if (totalComplexityScore >= 6) asset.mobilizationComplexity = 3; // Moderate
+                    else if (totalComplexityScore >= 3) asset.mobilizationComplexity = 2; // Simple
+                    else asset.mobilizationComplexity = 1; // Very simple
                     
                     // New Pro 2.0: Calculate network connectivity metrics
-                    asset.networkConnectivity = (asset.connectedMains || 0) + (asset.catchmentMains || 0);
+                    asset.networkConnectivity = connectedMainsFactor + catchmentMainsFactor;
                     asset.connectivityLevel = asset.networkConnectivity >= 8 ? 'High' : 
                                             asset.networkConnectivity >= 4 ? 'Medium' : 'Low';
                     
                     // New Pro 2.0: Geographic clustering benefit
-                    asset.geographicGroup = asset.suburb || 0;
+                    asset.geographicGroup = suburbFactor;
                     asset.clusteringBenefit = asset.geographicGroup > 0 ? 
                         Math.min(asset.geographicGroup * 2, 10) : 0;
                     
@@ -1941,6 +1978,10 @@
             const mobComplexThreshold = parseInt(document.getElementById('mobComplexThreshold').value);
             const proximityRadius = parseFloat(document.getElementById('proximityRadius').value);
             const proximityBonus = parseFloat(document.getElementById('proximityBonus').value) / 100;
+            
+            // New Pro 2.0: Read network analysis weights
+            const networkWeight = parseFloat(document.getElementById('networkWeight').value);
+            const clusterWeight = parseFloat(document.getElementById('clusterWeight').value);
             
             // Technical efficiency optimization with constraint handling
             let schedule = [];
