@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trunk Sewer Maintenance Optimizer Pro 2.0</title>
+    <title>Trunk Sewer Maintenance Optimizer Pro 2.0 - Controls Edition</title>
     <style>
         :root {
             --primary-blue: #007AFF;
@@ -542,6 +542,18 @@
             background: var(--background-secondary) !important;
         }
         
+        /* Hoverable content boxes */
+        .hoverable-box {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .hoverable-box:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-medium);
+            background: var(--background-secondary) !important;
+        }
+        
         @keyframes pulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.05); }
@@ -648,8 +660,8 @@
         // Configuration for Google Maps API
         const GOOGLE_MAPS_CONFIG = {
             // Set your API key here for production use
-            API_KEY: process?.env?.GOOGLE_MAPS_API_KEY || localStorage.getItem('gmaps_api_key') || 'YOUR_API_KEY',
-            LIBRARIES: 'geometry,marker',
+            API_KEY: localStorage.getItem('gmaps_api_key') || 'YOUR_API_KEY',
+            LIBRARIES: 'geometry,marker,visualization',
             CALLBACK: 'initGoogleMaps'
         };
         
@@ -675,32 +687,80 @@
         
         // Reload Google Maps API with new key
         function reloadGoogleMapsAPI() {
-            // Remove existing Google Maps scripts
-            const existingScripts = document.querySelectorAll('script[src*="maps.googleapis.com"]');
-            existingScripts.forEach(script => script.remove());
-            
-            // Clear Google Maps objects
-            if (window.google) {
-                window.google = undefined;
+            try {
+                console.log('reloadGoogleMapsAPI called');
+                
+                // Remove existing Google Maps scripts
+                const existingScripts = document.querySelectorAll('script[src*="maps.googleapis.com"]');
+                console.log('Found existing Google Maps scripts:', existingScripts.length);
+                existingScripts.forEach(script => {
+                    console.log('Removing script:', script.src);
+                    script.remove();
+                });
+                
+                // Clear Google Maps objects
+                if (window.google) {
+                    console.log('Clearing window.google');
+                    window.google = undefined;
+                }
+                if (typeof assetMap !== 'undefined') assetMap = null;
+                if (typeof markers !== 'undefined') markers = [];
+                if (typeof infoWindows !== 'undefined') infoWindows = [];
+                
+                // Update configuration with stored API key
+                const storedKey = localStorage.getItem('gmaps_api_key');
+                console.log('Stored API key found:', storedKey ? 'Yes' : 'No');
+                if (storedKey) {
+                    GOOGLE_MAPS_CONFIG.API_KEY = storedKey;
+                    console.log('Updated GOOGLE_MAPS_CONFIG.API_KEY');
+                }
+                
+                // Reset API status
+                apiStatus.status = 'unknown';
+                console.log('Reset API status to unknown');
+                
+                // Reload the API
+                console.log('Calling loadGoogleMapsAPI...');
+                loadGoogleMapsAPI();
+                
+                showNotification('🗺️ Google Maps API reloaded successfully!', 'success');
+                
+            } catch (error) {
+                console.error('Error in reloadGoogleMapsAPI:', error);
+                showNotification('❌ Failed to reload Google Maps API: ' + error.message, 'error');
             }
-            if (typeof assetMap !== 'undefined') assetMap = null;
-            if (typeof markers !== 'undefined') markers = [];
-            if (typeof infoWindows !== 'undefined') infoWindows = [];
-            
-            // Update configuration with stored API key
-            const storedKey = localStorage.getItem('gmaps_api_key');
-            if (storedKey) {
-                GOOGLE_MAPS_CONFIG.API_KEY = storedKey;
-            }
-            
-            // Reload the API
-            loadGoogleMapsAPI();
-            
-            showNotification('🗺️ Google Maps API reloaded successfully!', 'success');
         }
         
         // Load API when page loads
         document.addEventListener('DOMContentLoaded', loadGoogleMapsAPI);
+        
+        // Weighting system functions
+        function updateWeightingDisplay() {
+            const riskWeight = document.getElementById('riskWeight').value;
+            const operationalWeight = 100 - riskWeight;
+            
+            document.getElementById('riskWeightValue').textContent = riskWeight + '%';
+            document.getElementById('operationalWeight').value = operationalWeight + '%';
+            
+            // Update impact description
+            const impactSpan = document.getElementById('weightingImpact');
+            if (riskWeight >= 80) {
+                impactSpan.textContent = 'Pure risk-based prioritization - Operational factors have minimal influence';
+                impactSpan.parentElement.style.background = 'rgba(220, 38, 38, 0.1)'; // Red tint
+            } else if (riskWeight >= 70) {
+                impactSpan.textContent = 'Risk-dominant approach - Operational efficiency provides minor adjustments';
+                impactSpan.parentElement.style.background = 'rgba(245, 158, 11, 0.1)'; // Orange tint  
+            } else if (riskWeight >= 50) {
+                impactSpan.textContent = 'Balanced approach - Risk dominates but operational factors provide fine-tuning';
+                impactSpan.parentElement.style.background = 'rgba(0, 122, 255, 0.1)'; // Blue tint
+            } else if (riskWeight >= 30) {
+                impactSpan.textContent = 'Operational-focused - Risk provides broad categorization, efficiency drives scheduling';
+                impactSpan.parentElement.style.background = 'rgba(16, 185, 129, 0.1)'; // Green tint
+            } else {
+                impactSpan.textContent = 'Pure operational optimization - Risk has minimal influence on prioritization';
+                impactSpan.parentElement.style.background = 'rgba(139, 92, 246, 0.1)'; // Purple tint
+            }
+        }
     </script>
 </head>
 <body>
@@ -728,6 +788,7 @@
                 <button class="tab-button" onclick="showTab('instructions')">Instructions</button>
                 <button class="tab-button" onclick="showTab('asset-data')">Asset Data</button>
                 <button class="tab-button" onclick="showTab('manual-entry')">Manual Entry</button>
+                <button class="tab-button" onclick="showTab('controls')">⚖️ Controls</button>
                 <button class="tab-button" onclick="showTab('optimization')">Optimization & Results</button>
                 <button class="tab-button" onclick="showTab('technical-notes')">Technical Notes</button>
                 <button class="tab-button" onclick="showTab('mapped-locations')">🗺️ Mapped Locations</button>
@@ -741,6 +802,48 @@
                 <div class="hero-section">
                     <h1 class="hero-title">Infrastructure Excellence</h1>
                     <p class="hero-subtitle">Optimize trunk sewer maintenance with advanced constraint-based modeling and risk assessment</p>
+                    
+                    <div style="background: rgba(255,255,255,0.15); border-radius: 12px; padding: 24px; margin: 24px 0; backdrop-filter: blur(10px);">
+                        <h3 style="margin: 0 0 16px 0; color: white; font-size: 18px; font-weight: 600;">🎯 Key Strategic Optimization Factors</h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; font-size: 14px; line-height: 1.6;">
+                            <div style="display: flex; align-items: flex-start; gap: 10px;">
+                                <span style="background: rgba(255,255,255,0.2); border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px; font-weight: 600;">1</span>
+                                <div>
+                                    <strong style="color: white;">Geographic Clustering</strong><br>
+                                    <span style="color: rgba(255,255,255,0.9);">Assets in the same area reduce mobilization costs</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: flex-start; gap: 10px;">
+                                <span style="background: rgba(255,255,255,0.2); border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px; font-weight: 600;">2</span>
+                                <div>
+                                    <strong style="color: white;">Network Connectivity</strong><br>
+                                    <span style="color: rgba(255,255,255,0.9);">Maintenance creates opportunities for related infrastructure</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: flex-start; gap: 10px;">
+                                <span style="background: rgba(255,255,255,0.2); border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px; font-weight: 600;">3</span>
+                                <div>
+                                    <strong style="color: white;">Resource Optimization</strong><br>
+                                    <span style="color: rgba(255,255,255,0.9);">Shared equipment, crews, and bypass systems</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: flex-start; gap: 10px;">
+                                <span style="background: rgba(255,255,255,0.2); border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px; font-weight: 600;">4</span>
+                                <div>
+                                    <strong style="color: white;">Catchment Benefits</strong><br>
+                                    <span style="color: rgba(255,255,255,0.9);">Working on multiple mains in the same catchment area</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: flex-start; gap: 10px;">
+                                <span style="background: rgba(255,255,255,0.2); border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px; font-weight: 600;">5</span>
+                                <div>
+                                    <strong style="color: white;">Long-term Program Efficiency</strong><br>
+                                    <span style="color: rgba(255,255,255,0.9);">Optimizing the entire 20-year program rather than individual years</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <button class="btn btn-secondary btn-lg" onclick="showTab('instructions')">Get Started →</button>
                 </div>
 
@@ -955,31 +1058,42 @@
                             </div>
                         </div>
 
-                        <h3 style="margin: 24px 0 16px 0; color: var(--primary-blue);">Network Analysis & Proximity</h3>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label">Mobilization Complexity Threshold (1-5)</label>
-                                <input type="number" id="mobComplexThreshold" class="form-input" min="1" max="5" value="3">
-                                <small class="form-help">Calculated from: Adjacent Suburb + Connected Mains + Catchment Mains</small>
+                        <h3 style="margin: 24px 0 16px 0; color: var(--primary-blue);">Priority Weighting System</h3>
+                        <div style="background: #E8F4FD; border: 1px solid var(--primary-blue); border-radius: var(--radius-small); padding: 16px; margin-bottom: 20px;">
+                            <h4 style="margin: 0 0 12px 0; color: var(--primary-blue); font-size: 14px;">⚖️ Risk vs Operational Balance</h4>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label">Risk Priority Weight (%)</label>
+                                    <input type="range" id="riskWeight" class="form-input" min="20" max="90" step="5" value="60" 
+                                           style="width: 100%;" oninput="updateWeightingDisplay()">
+                                    <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                                        <span>20%</span>
+                                        <span id="riskWeightValue">60%</span>
+                                        <span>90%</span>
+                                    </div>
+                                    <small class="form-help">Higher values prioritize risk over operational efficiency</small>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Operational Weight (%)</label>
+                                    <input type="text" id="operationalWeight" class="form-input" value="40%" readonly 
+                                           style="background: #f8f9fa; color: var(--text-secondary);">
+                                    <small class="form-help">Automatically calculated (100% - Risk Weight)</small>
+                                </div>
                             </div>
+                            <div style="margin-top: 12px; padding: 8px; background: rgba(0,122,255,0.1); border-radius: 4px; font-size: 13px;">
+                                <strong>Impact:</strong> <span id="weightingImpact">Balanced approach - Risk dominates but operational factors provide fine-tuning</span>
+                            </div>
+                        </div>
+
+                        <h3 style="margin: 24px 0 16px 0; color: var(--primary-blue);">Geographic Clustering</h3>
+                        <div class="form-row">
                             <div class="form-group">
                                 <label class="form-label">Proximity Radius (m)</label>
                                 <input type="number" id="proximityRadius" class="form-input" min="100" max="2000" value="500">
+                                <small class="form-help">Distance threshold for grouping assets for coordinated maintenance</small>
                             </div>
                         </div>
                         
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label">Network Connectivity Weight</label>
-                                <input type="number" id="networkWeight" class="form-input" min="0.1" max="2.0" step="0.1" value="1.0">
-                                <small class="form-help">Multiplier for Connected Mains + Catchment analysis</small>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Geographic Clustering Weight</label>
-                                <input type="number" id="clusterWeight" class="form-input" min="0.1" max="2.0" step="0.1" value="1.0">
-                                <small class="form-help">Multiplier for Adjacent Suburb grouping</small>
-                            </div>
-                        </div>
                         
                         <div class="form-row">
                             <div class="form-group">
@@ -989,6 +1103,125 @@
                             <div class="form-group">
                                 <label class="form-label">Planning Periods (Years)</label>
                                 <input type="number" id="planningPeriods" class="form-input" min="1" max="10" value="5">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 5: Controls -->
+            <div id="controls" class="tab-pane">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Dynamic Weighting System</h2>
+                        <p class="card-subtitle">Flexible prioritization framework for diverse asset management strategies</p>
+                    </div>
+                    <div class="card-content">
+                        <div style="background: #E8F4FD; border: 2px solid var(--primary-blue); border-radius: var(--radius-small); padding: 20px; margin-bottom: 20px;">
+                            <h3 style="color: var(--primary-blue); margin: 0 0 16px 0;">⏺ ✅ DYNAMIC WEIGHTING SYSTEM IMPLEMENTED</h3>
+                            
+                            <h4 style="color: var(--primary-blue); margin: 16px 0 12px 0;">🎛️ User Controls Added:</h4>
+                            <ol style="line-height: 1.8; color: var(--text-secondary); margin-bottom: 20px;">
+                                <li><strong>Interactive Slider:</strong> Risk Weight 20%-90% (default 60%)</li>
+                                <li><strong>Auto-Calculation:</strong> Operational Weight = 100% - Risk Weight</li>
+                                <li><strong>Real-time Feedback:</strong> Color-coded impact descriptions</li>
+                                <li><strong>Strategy Guidance:</strong> Visual indicators for different approaches</li>
+                            </ol>
+                            
+                            <h4 style="color: var(--primary-blue); margin: 16px 0 12px 0;">🔄 Weighting Strategy Options:</h4>
+                            <div style="overflow-x: auto; margin-bottom: 20px;">
+                                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                                    <thead>
+                                        <tr style="background: var(--background-tertiary);">
+                                            <th style="padding: 10px; border: 1px solid var(--border-color); text-align: left; font-weight: 600;">Risk Weight</th>
+                                            <th style="padding: 10px; border: 1px solid var(--border-color); text-align: left; font-weight: 600;">Operational Weight</th>
+                                            <th style="padding: 10px; border: 1px solid var(--border-color); text-align: left; font-weight: 600;">Strategy</th>
+                                            <th style="padding: 10px; border: 1px solid var(--border-color); text-align: left; font-weight: 600;">Best For</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td style="padding: 8px; border: 1px solid var(--border-color); background: #FECACA;">80-90%</td>
+                                            <td style="padding: 8px; border: 1px solid var(--border-color);">10-20%</td>
+                                            <td style="padding: 8px; border: 1px solid var(--border-color); font-weight: 500;">Pure Risk-Based</td>
+                                            <td style="padding: 8px; border: 1px solid var(--border-color);">Emergency programs, high-consequence assets</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 8px; border: 1px solid var(--border-color); background: #FED7AA;">70-79%</td>
+                                            <td style="padding: 8px; border: 1px solid var(--border-color);">21-30%</td>
+                                            <td style="padding: 8px; border: 1px solid var(--border-color); font-weight: 500;">Risk-Dominant</td>
+                                            <td style="padding: 8px; border: 1px solid var(--border-color);">Standard asset management</td>
+                                        </tr>
+                                        <tr style="background: #F0F7FF;">
+                                            <td style="padding: 8px; border: 1px solid var(--border-color); background: #DBEAFE; font-weight: 600;">50-69%</td>
+                                            <td style="padding: 8px; border: 1px solid var(--border-color); font-weight: 600;">31-50%</td>
+                                            <td style="padding: 8px; border: 1px solid var(--border-color); font-weight: 600;">Balanced Approach</td>
+                                            <td style="padding: 8px; border: 1px solid var(--border-color); font-weight: 600;">Mixed portfolios (default: 60/40)</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 8px; border: 1px solid var(--border-color); background: #D1FAE5;">30-49%</td>
+                                            <td style="padding: 8px; border: 1px solid var(--border-color);">51-70%</td>
+                                            <td style="padding: 8px; border: 1px solid var(--border-color); font-weight: 500;">Operational-Focused</td>
+                                            <td style="padding: 8px; border: 1px solid var(--border-color);">Budget-constrained, efficiency-driven</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 8px; border: 1px solid var(--border-color); background: #E0E7FF;">20-29%</td>
+                                            <td style="padding: 8px; border: 1px solid var(--border-color);">71-80%</td>
+                                            <td style="padding: 8px; border: 1px solid var(--border-color); font-weight: 500;">Pure Efficiency</td>
+                                            <td style="padding: 8px; border: 1px solid var(--border-color);">Maintenance optimization</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <h4 style="color: var(--primary-blue); margin: 16px 0 12px 0;">💡 Strategic Benefits:</h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-bottom: 20px;">
+                                <div style="background: rgba(220, 38, 38, 0.1); padding: 12px; border-radius: 6px; border-left: 4px solid #DC2626;">
+                                    <strong>✅ Regulatory Compliance:</strong> 80%+ risk weight for strict safety requirements
+                                </div>
+                                <div style="background: rgba(245, 158, 11, 0.1); padding: 12px; border-radius: 6px; border-left: 4px solid #F59E0B;">
+                                    <strong>✅ Budget Optimization:</strong> 30-40% risk weight for cost-efficiency focus
+                                </div>
+                                <div style="background: rgba(0, 122, 255, 0.1); padding: 12px; border-radius: 6px; border-left: 4px solid #007AFF;">
+                                    <strong>✅ Balanced Management:</strong> 60% risk weight for comprehensive approach
+                                </div>
+                                <div style="background: rgba(16, 185, 129, 0.1); padding: 12px; border-radius: 6px; border-left: 4px solid #10B981;">
+                                    <strong>✅ Custom Strategies:</strong> Fine-tune to organizational priorities
+                                </div>
+                            </div>
+                            
+                            <h4 style="color: var(--primary-blue); margin: 16px 0 12px 0;">🔧 Technical Features:</h4>
+                            <ul style="line-height: 1.8; color: var(--text-secondary); margin-bottom: 20px;">
+                                <li><strong>Dynamic Scoring:</strong> Algorithm adapts to user-defined weights</li>
+                                <li><strong>Real-time Updates:</strong> Immediate visual feedback on strategy impact</li>
+                                <li><strong>Console Logging:</strong> Detailed scoring breakdown for transparency</li>
+                                <li><strong>Documentation:</strong> Updated to reflect flexible system</li>
+                            </ul>
+                            
+                            <div style="background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 6px; padding: 16px;">
+                                <h5 style="color: #92400E; margin: 0 0 8px 0;">🧪 Test with different weighting scenarios:</h5>
+                                <ul style="margin: 0; color: #92400E; line-height: 1.6;">
+                                    <li><strong>90% Risk Weight:</strong> Pure risk prioritization</li>
+                                    <li><strong>60% Risk Weight:</strong> Balanced approach (current default)</li>
+                                    <li><strong>30% Risk Weight:</strong> Operational efficiency focus</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="card" style="margin-top: 24px;">
+                            <div class="card-header">
+                                <h3 class="card-title">Quick Access to Controls</h3>
+                                <p class="card-subtitle">The weighting controls are available in the Manual Entry tab</p>
+                            </div>
+                            <div class="card-content">
+                                <div style="text-align: center; padding: 20px;">
+                                    <button class="btn btn-primary btn-lg" onclick="showTab('manual-entry')" style="font-size: 16px; padding: 16px 32px;">
+                                        🎛️ Go to Manual Entry Controls →
+                                    </button>
+                                    <p style="margin-top: 12px; color: var(--text-secondary); font-size: 14px;">
+                                        Adjust the Risk vs Operational weighting slider in the "Priority Weighting System" section
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1022,7 +1255,7 @@
                         </div>
                         <div class="metric-card">
                             <div class="metric-value" style="color: var(--success-green);" id="riskReduction">-</div>
-                            <div class="metric-label">High Risk Assets Covered</div>
+                            <div class="metric-label">Assets Scheduled</div>
                             <div class="metric-change change-positive" id="riskChange">High risk assets covered</div>
                         </div>
                         <div class="metric-card">
@@ -1062,95 +1295,37 @@
                         <p class="card-subtitle">Understanding the optimization approach and mathematical framework</p>
                     </div>
                     <div class="card-content">
-                        <h3 style="margin-bottom: 16px; color: var(--primary-blue);">Problem Formulation</h3>
-                        <p style="margin-bottom: 16px; line-height: 1.6;">This application solves a <strong>Multi-Objective Integer Programming</strong> problem that optimizes trunk sewer maintenance scheduling. The system balances two competing objectives:</p>
+                        <h3 style="margin-bottom: 16px; color: var(--primary-blue);">Algorithm Overview</h3>
+                        <p style="margin-bottom: 16px; line-height: 1.6;">This application uses a <strong>Risk-First Optimization Algorithm</strong> with dynamic weighting to prioritize trunk sewer maintenance. The system balances:</p>
                         <ul style="margin-bottom: 20px; padding-left: 20px; line-height: 1.8;">
-                            <li><strong>Minimize Total Cost:</strong> Reduce direct maintenance costs including mobilization, bypass setup, and labor</li>
-                            <li><strong>Maximize Risk Reduction:</strong> Address high-risk assets first to prevent system failures and emergency repairs</li>
+                            <li><strong>Risk Priority:</strong> High-risk assets scheduled first regardless of operational factors</li>
+                            <li><strong>Geographic Efficiency:</strong> Assets within 500m radius grouped for coordinated maintenance</li>
+                            <li><strong>Operational Optimization:</strong> Access, bypass, and timing considerations within risk tiers</li>
                         </ul>
                         
-                        <h3 style="margin-bottom: 16px; color: var(--primary-blue);">Mathematical Model</h3>
-                        <div style="background: var(--background-tertiary); border-radius: var(--radius-small); padding: 20px; margin: 16px 0; font-family: monospace; font-size: 14px;">
-                            <strong>Decision Variables:</strong><br>
-                            • x<sub>i,t</sub> = 1 if asset i is maintained in year t, 0 otherwise<br>
-                            • y<sub>i,j</sub> = 1 if assets i and j are coordinated for proximity benefits<br><br>
-                            <strong>Objective Function:</strong><br>
-                            Minimize: Σ[C<sub>i,t</sub> × x<sub>i,t</sub> + R<sub>i</sub> × (1 - Σx<sub>i,t</sub>)] - Σ[S<sub>i,j</sub> × y<sub>i,j</sub>]
-                        </div>
-                        
-                        <div style="background: #f0f7ff; border: 1px solid var(--primary-blue); border-radius: var(--radius-small); padding: 16px; margin: 16px 0;">
-                            <h4 style="color: var(--primary-blue); margin-bottom: 12px;">📖 Variable Legend</h4>
+                        <h3 style="margin-bottom: 16px; color: var(--primary-blue);">Scoring Formula</h3>
+                        <div style="background: var(--background-tertiary); border-radius: var(--radius-small); padding: 20px; margin: 16px 0;">
+                            <div style="font-family: monospace; font-size: 16px; text-align: center; margin-bottom: 16px; color: var(--primary-blue); font-weight: 600;">
+                                Total Score = (Risk Score × Risk Weight) + (Operational Score × Operational Weight)
+                            </div>
                             <div style="font-size: 14px; line-height: 1.6;">
-                                <strong>C<sub>i,t</sub></strong> = Total maintenance cost for asset i in period t<br>
-                                <strong>R<sub>i</sub></strong> = Risk cost (consequence of deferring maintenance for asset i)<br>
-                                <strong>S<sub>i,j</sub></strong> = Cost savings from coordinating assets i and j<br>
-                                <strong>x<sub>i,t</sub></strong> = Binary decision variable (maintain asset i in year t)<br>
-                                <strong>y<sub>i,j</sub></strong> = Binary coordination variable (coordinate assets i and j)<br><br>
-                                <em style="color: var(--text-secondary);">The objective minimizes total costs while maximizing coordination savings</em>
+                                <strong>Risk Score:</strong> Based on asset condition and consequence (20-100 points)<br>
+                                <strong>Operational Score:</strong> Access + Bypass + Work Scope + Timing (0-67 points)<br>
+                                <strong>Weights:</strong> User-configurable (default: 60% Risk, 40% Operational)
                             </div>
                         </div>
                         
-                        <h3 style="margin-bottom: 16px; color: var(--primary-blue);">Optimized Schedule Development Process</h3>
-                        <div style="background: #E8F4FD; border: 2px solid var(--primary-blue); border-radius: var(--radius-small); padding: 24px; margin: 20px 0;">
-                            <h4 style="color: var(--primary-blue); margin-bottom: 16px; display: flex; align-items: center;">
-                                <span style="font-size: 20px; margin-right: 8px;">🧮</span>
-                                Mathematical Constraint Modeling Framework
-                            </h4>
-                            
-                            <p style="margin-bottom: 20px; line-height: 1.6;">The system employs a sophisticated multi-stage optimization process that systematically evaluates asset combinations while respecting operational constraints:</p>
-                            
-                            <div style="display: grid; gap: 16px; margin-bottom: 20px;">
-                                <div style="background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #10B981;">
-                                    <h5 style="color: #059669; margin-bottom: 8px;">Stage 1: Asset Prioritization Matrix</h5>
-                                    <div style="font-family: monospace; font-size: 13px; background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 8px 0;">
-                                        P<sub>i</sub> = α·R<sub>i</sub> + β·A<sub>i</sub> + γ·M<sub>i</sub> + δ·T<sub>i</sub> + ε·N<sub>i</sub> + ζ·G<sub>i</sub>
-                                    </div>
-                                    <p style="font-size: 14px; color: #374151;">Where P<sub>i</sub> = Priority score for asset i, weighted by risk (R), access (A), mobilization (M), timing (T), network connectivity (N), and geographic clustering (G).</p>
-                                </div>
-                                
-                                <div style="background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #F59E0B;">
-                                    <h5 style="color: #D97706; margin-bottom: 8px;">Stage 2: Constraint Satisfaction Testing</h5>
-                                    <div style="font-family: monospace; font-size: 13px; background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 8px 0;">
-                                        Σ L<sub>i</sub> ≤ L<sub>max</sub> ∧ Σ C<sub>i</sub> ≤ B<sub>t</sub> ∧ D<sub>i</sub> ≥ D<sub>min</sub>
-                                    </div>
-                                    <p style="font-size: 14px; color: #374151;">Annual length constraint (L<sub>max</sub>), budget constraint (B<sub>t</sub>), and minimum diameter threshold (D<sub>min</sub>) must be satisfied for each planning year.</p>
-                                </div>
-                                
-                                <div style="background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #8B5CF6;">
-                                    <h5 style="color: #7C3AED; margin-bottom: 8px;">Stage 3: Proximity Optimization</h5>
-                                    <div style="font-family: monospace; font-size: 13px; background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 8px 0;">
-                                        S<sub>i,j</sub> = f(d<sub>i,j</sub>, D<sub>i,j</sub>, Δt<sub>i,j</sub>) where d<sub>i,j</sub> ≤ 500m
-                                    </div>
-                                    <p style="font-size: 14px; color: #374151;">Coordination benefits S<sub>i,j</sub> are calculated based on distance (d), diameter compatibility (D), and scheduling proximity (Δt) within 500m radius.</p>
-                                </div>
-                            </div>
-                            
-                            <h5 style="color: var(--primary-blue); margin: 20px 0 12px 0;">🔄 Iterative Optimization Algorithm</h5>
-                            <ol style="font-size: 14px; line-height: 1.8; color: #374151;">
-                                <li><strong>Initialize:</strong> Sort all assets by priority score P<sub>i</sub> in descending order</li>
-                                <li><strong>Iterate Years:</strong> For each planning year t = 1 to n:
-                                    <ul style="margin: 8px 0 8px 20px;">
-                                        <li>Reset annual counters: length sum = 0, asset count = 0</li>
-                                        <li>Process highest priority unscheduled assets first</li>
-                                    </ul>
-                                </li>
-                                <li><strong>Constraint Checking:</strong> For each candidate asset i:
-                                    <ul style="margin: 8px 0 8px 20px;">
-                                        <li>Test: (current_length + L<sub>i</sub>) ≤ L<sub>max</sub></li>
-                                        <li>Test: D<sub>i</sub> ≥ D<sub>min</sub> (diameter threshold)</li>
-                                        <li>Apply access penalty if A<sub>i</sub> < threshold</li>
-                                    </ul>
-                                </li>
-                                <li><strong>Proximity Analysis:</strong> If constraints satisfied:
-                                    <ul style="margin: 8px 0 8px 20px;">
-                                        <li>Search for assets within 500m radius scheduled in year t</li>
-                                        <li>Apply coordination bonus if compatible assets found</li>
-                                        <li>Update proximity flags for involved assets</li>
-                                    </ul>
-                                </li>
-                                <li><strong>Schedule Assignment:</strong> Add asset to year t, update counters, mark as scheduled</li>
-                                <li><strong>Convergence:</strong> Continue until all feasible assets scheduled or year capacity reached</li>
+                        <h3 style="margin-bottom: 16px; color: var(--primary-blue);">Algorithm Steps</h3>
+                        <div style="background: #E8F4FD; border: 2px solid var(--primary-blue); border-radius: var(--radius-small); padding: 20px; margin: 16px 0;">
+                            <ol style="line-height: 1.8; color: var(--text-secondary);">
+                                <li><strong>Calculate Scores:</strong> Compute risk and operational scores for all assets</li>
+                                <li><strong>Risk-First Sorting:</strong> Group assets by risk tier (High > Moderate > Low)</li>
+                                <li><strong>Within-Tier Ranking:</strong> Sort by total weighted score within each risk tier</li>
+                                <li><strong>Geographic Clustering:</strong> Identify assets within 500m proximity</li>
+                                <li><strong>Capacity Allocation:</strong> Schedule assets respecting annual length constraints</li>
+                                <li><strong>Proximity Coordination:</strong> Include lower-risk assets if near high-risk assets</li>
                             </ol>
+                            
                         </div>
 
                         <h3 style="margin-bottom: 16px; color: var(--primary-blue);">Constraint Categories</h3>
@@ -1158,7 +1333,7 @@
                             <div>
                                 <h4 style="margin-bottom: 8px;">Resource Constraints</h4>
                                 <ul style="color: var(--text-secondary); line-height: 1.8; font-size: 14px;">
-                                    <li>Annual budget limitations</li>
+                                    <li>Annual length capacity limits</li>
                                     <li>Crew capacity and equipment availability</li>
                                     <li>Production rate constraints</li>
                                     <li>Working day limitations</li>
@@ -1175,7 +1350,7 @@
                             </div>
                         </div>
                         
-                        <div style="background: #FFF4E5; border: 1px solid var(--warning-orange); border-radius: var(--radius-small); padding: 20px; margin-top: 20px;">
+                        <div class="hoverable-box" style="background: #FFF4E5; border: 1px solid var(--warning-orange); border-radius: var(--radius-small); padding: 20px; margin-top: 20px;">
                             <h4 style="color: var(--warning-orange); margin-bottom: 12px;">⚡ Real-Time Constraint Handling</h4>
                             <p style="font-size: 14px; line-height: 1.6; margin-bottom: 12px;">The optimization engine continuously monitors constraint satisfaction:</p>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 13px;">
@@ -1184,7 +1359,7 @@
                                     <ul style="margin: 8px 0 0 16px; line-height: 1.6;">
                                         <li>Annual length ≤ Maximum capacity</li>
                                         <li>Asset diameter ≥ Minimum threshold</li>
-                                        <li>Budget allocation ≤ Available funds</li>
+                                        <li>Geographic coordinates must be valid</li>
                                     </ul>
                                 </div>
                                 <div>
@@ -1202,90 +1377,24 @@
 
                 <div class="card">
                     <div class="card-header">
-                        <h2 class="card-title">Practical Example: Schedule Development</h2>
-                        <p class="card-subtitle">Step-by-step walkthrough of the mathematical optimization process</p>
+                        <h2 class="card-title">Key Features</h2>
+                        <p class="card-subtitle">What makes this optimization system effective</p>
                     </div>
                     <div class="card-content">
-                        <div style="background: #F0F7FF; border: 1px solid var(--primary-blue); border-radius: var(--radius-small); padding: 20px; margin-bottom: 20px;">
-                            <h4 style="color: var(--primary-blue); margin-bottom: 16px;">📋 Example Scenario</h4>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 14px;">
-                                <div>
-                                    <strong>System Parameters:</strong>
-                                    <ul style="margin: 8px 0 0 16px; line-height: 1.6;">
-                                        <li>Max Length/Year: 2,000m</li>
-                                        <li>Min Diameter: 375mm</li>
-                                        <li>Planning Period: 3 years</li>
-                                        <li>Proximity Radius: 500m</li>
-                                    </ul>
-                                </div>
-                                <div>
-                                    <strong>Sample Assets:</strong>
-                                    <ul style="margin: 8px 0 0 16px; line-height: 1.6;">
-                                        <li>TM-001: 850m, High Risk, Score 145</li>
-                                        <li>TM-002: 620m, High Risk, Score 142</li>
-                                        <li>TM-003: 450m, Med Risk, Score 118</li>
-                                        <li>TM-004: 380m, Med Risk, Score 95</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <h4 style="margin: 20px 0 12px 0; color: var(--primary-blue);">🎯 Step-by-Step Optimization Process</h4>
-                        
                         <div style="display: grid; gap: 16px;">
-                            <div style="background: white; border: 1px solid #E5E7EB; border-radius: 8px; padding: 16px; border-left: 4px solid #10B981;">
-                                <h5 style="color: #059669; margin-bottom: 12px;">Year 1 Allocation</h5>
-                                <div style="font-size: 14px; line-height: 1.6;">
-                                    <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 8px 0; font-family: monospace; font-size: 13px;">
-                                        <strong>Priority Order:</strong> TM-001 (145) → TM-002 (142) → TM-003 (118) → TM-004 (95)<br>
-                                        <strong>Constraint Check:</strong><br>
-                                        • TM-001: 850m ≤ 2000m ✓ → Schedule, Remaining: 1150m<br>
-                                        • TM-002: 620m ≤ 1150m ✓ → Schedule, Remaining: 530m<br>
-                                        • TM-003: 450m ≤ 530m ✓ → Schedule, Remaining: 80m<br>
-                                        • TM-004: 380m > 80m ✗ → Defer to Year 2
-                                    </div>
-                                    <p><strong>Year 1 Result:</strong> TM-001, TM-002, TM-003 scheduled (1,920m total)</p>
-                                </div>
+                            <div class="hoverable-box" style="background: #F0F7FF; border: 1px solid var(--primary-blue); border-radius: var(--radius-small); padding: 16px;">
+                                <h4 style="color: var(--primary-blue); margin-bottom: 12px;">🎯 Risk-First Approach</h4>
+                                <p style="font-size: 14px; line-height: 1.6; margin: 0;">High-risk assets always scheduled before low-risk assets, ensuring critical infrastructure receives priority regardless of operational convenience.</p>
                             </div>
                             
-                            <div style="background: white; border: 1px solid #E5E7EB; border-radius: 8px; padding: 16px; border-left: 4px solid #F59E0B;">
-                                <h5 style="color: #D97706; margin-bottom: 12px;">Proximity Analysis</h5>
-                                <div style="font-size: 14px; line-height: 1.6;">
-                                    <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 8px 0; font-family: monospace; font-size: 13px;">
-                                        <strong>Distance Matrix:</strong><br>
-                                        • TM-001 ↔ TM-002: 320m ≤ 500m ✓ → Coordination Bonus: +20 points each<br>
-                                        • TM-001 ↔ TM-003: 680m > 500m ✗ → No coordination<br>
-                                        • TM-002 ↔ TM-003: 450m ≤ 500m ✓ → Coordination Bonus: +20 points each
-                                    </div>
-                                    <p><strong>Proximity Result:</strong> TM-001, TM-002, TM-003 receive coordination bonuses</p>
-                                </div>
+                            <div class="hoverable-box" style="background: #E8F5E8; border: 1px solid var(--success-green); border-radius: var(--radius-small); padding: 16px;">
+                                <h4 style="color: var(--success-green); margin-bottom: 12px;">⚖️ Dynamic Weighting</h4>
+                                <p style="font-size: 14px; line-height: 1.6; margin: 0;">User-adjustable balance between risk priority (20-90%) and operational efficiency, allowing flexible strategy implementation.</p>
                             </div>
                             
-                            <div style="background: white; border: 1px solid #E5E7EB; border-radius: 8px; padding: 16px; border-left: 4px solid #8B5CF6;">
-                                <h5 style="color: #7C3AED; margin-bottom: 12px;">Final Score Calculation</h5>
-                                <div style="font-size: 14px; line-height: 1.6;">
-                                    <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 8px 0; font-family: monospace; font-size: 13px;">
-                                        <strong>Updated Scores:</strong><br>
-                                        • TM-001: 145 + 20 (proximity) = 165 points<br>
-                                        • TM-002: 142 + 20 (proximity) = 162 points<br>
-                                        • TM-003: 118 + 20 (proximity) = 138 points<br>
-                                        • TM-004: 95 (no proximity) = 95 points
-                                    </div>
-                                    <p><strong>Optimization Benefit:</strong> 15% efficiency gain through proximity coordination</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div style="background: #E8F5E8; border: 1px solid #10B981; border-radius: var(--radius-small); padding: 16px; margin-top: 20px;">
-                            <h4 style="color: #059669; margin-bottom: 12px;">✅ Mathematical Validation</h4>
-                            <div style="font-size: 14px; line-height: 1.6;">
-                                <p style="margin-bottom: 8px;"><strong>Constraint Satisfaction:</strong></p>
-                                <ul style="margin: 0 0 12px 16px;">
-                                    <li>Length Constraint: 1,920m ≤ 2,000m ✓ (96% capacity utilization)</li>
-                                    <li>Risk Coverage: 3/4 high-priority assets scheduled ✓</li>
-                                    <li>Proximity Optimization: 3/3 scheduled assets coordinated ✓</li>
-                                </ul>
-                                <p><strong>Outcome:</strong> Optimal balance of constraint satisfaction and risk reduction achieved</p>
+                            <div class="hoverable-box" style="background: #FFF4E5; border: 1px solid var(--warning-orange); border-radius: var(--radius-small); padding: 16px;">
+                                <h4 style="color: var(--warning-orange); margin-bottom: 12px;">📍 Geographic Clustering</h4>
+                                <p style="font-size: 14px; line-height: 1.6; margin: 0;">True distance-based proximity detection (500m radius) for coordinated maintenance, reducing travel costs and maximizing efficiency.</p>
                             </div>
                         </div>
                     </div>
@@ -1324,7 +1433,7 @@
                             </div>
                         </div>
                         
-                        <div style="background: #FFF4E5; border: 1px solid var(--warning-orange); border-radius: var(--radius-small); padding: 20px; margin-top: 20px;">
+                        <div class="hoverable-box" style="background: #FFF4E5; border: 1px solid var(--warning-orange); border-radius: var(--radius-small); padding: 20px; margin-top: 20px;">
                             <h4 style="color: var(--warning-orange); margin-bottom: 12px; font-size: 16px;">🔧 Google Maps API Setup Required</h4>
                             
                             <div style="background: white; padding: 16px; border-radius: 6px; margin: 12px 0;">
@@ -1373,10 +1482,10 @@
                                 <h4 style="margin-bottom: 12px; color: var(--primary-blue);">Model Assumptions</h4>
                                 <ul style="color: var(--text-secondary); line-height: 1.7; font-size: 14px;">
                                     <li>Risk ratings remain constant over planning period</li>
-                                    <li>Resource costs are stable (no inflation adjustment)</li>
                                     <li>Weather and seasonal factors not considered</li>
                                     <li>Asset deterioration follows linear progression</li>
                                     <li>Bypass availability is guaranteed when required</li>
+                                    <li>Geographic coordinates are accurate and up-to-date</li>
                                 </ul>
                             </div>
                             <div>
@@ -1384,124 +1493,26 @@
                                 <ul style="color: var(--text-secondary); line-height: 1.7; font-size: 14px;">
                                     <li>Maximum 1000 assets per optimization run</li>
                                     <li>20-year maximum planning horizon</li>
-                                    <li>Simplified traffic impact modeling</li>
-                                    <li>No integration with SCADA systems</li>
-                                    <li>Static crew productivity assumptions</li>
+                                    <li>Requires Google Maps API for accurate proximity detection</li>
+                                    <li>RevI data format specific (excludes network connectivity)</li>
+                                    <li>Static access and bypass scoring assumptions</li>
                                 </ul>
                             </div>
                         </div>
                         
-                        <h3 style="margin: 24px 0 16px 0; color: var(--primary-blue);">Technical Scoring System</h3>
-                        <p style="margin-bottom: 16px;">The optimization system uses a comprehensive scoring algorithm based on multiple technical factors:</p>
-                        
-                        <h4 style="margin: 16px 0 12px 0; color: var(--primary-blue);">🎯 Risk Rating Scoring (1-25 scale)</h4>
-                        <div style="background: var(--background-tertiary); border-radius: var(--radius-small); padding: 16px; margin-bottom: 16px;">
-                            <ul style="color: var(--text-secondary); line-height: 1.7;">
-                                <li><strong>Extreme Risk (20-25 points):</strong> 100 priority points</li>
-                                <li><strong>Very High Risk (15-19 points):</strong> 75 priority points</li>
-                                <li><strong>High Risk (10-14 points):</strong> 50 priority points</li>
-                                <li><strong>Low Risk (1-9 points):</strong> 25 priority points</li>
+                        <h3 style="margin-bottom: 16px; color: var(--primary-blue);">Data Requirements</h3>
+                        <p style="margin-bottom: 16px; line-height: 1.6;">The system requires CSV data with these essential columns for RevI format:</p>
+                        <div class="hoverable-box" style="background: var(--background-tertiary); border-radius: var(--radius-small); padding: 16px; margin-bottom: 20px;">
+                            <ul style="color: var(--text-secondary); line-height: 1.8;">
+                                <li><strong>Asset ID:</strong> Unique identifier for each trunk main</li>
+                                <li><strong>Length (m):</strong> Asset length in meters</li>
+                                <li><strong>Size:</strong> Pipe diameter (DN150, DN375, etc.)</li>
+                                <li><strong>Risk Rating:</strong> Low Risk, Moderate Risk, High Risk</li>
+                                <li><strong>Access score:</strong> Numerical access difficulty (1-10 scale)</li>
+                                <li><strong>Bypass required:</strong> Y/N flag for bypass requirements</li>
+                                <li><strong>Risk:</strong> Numerical risk score (1-10 scale)</li>
+                                <li><strong>Latitude and longitude:</strong> Geographic coordinates</li>
                             </ul>
-                            <p style="margin-top: 8px; font-size: 13px; color: var(--text-secondary);"><em>Risk Rating = Asset Condition (1-5) × Consequence of Failure (1-5)</em></p>
-                        </div>
-
-                        <h4 style="margin: 16px 0 12px 0; color: var(--primary-blue);">🔧 Access Scoring (1-10 scale)</h4>
-                        <div style="background: var(--background-tertiary); border-radius: var(--radius-small); padding: 16px; margin-bottom: 16px;">
-                            <ul style="color: var(--text-secondary); line-height: 1.7;">
-                                <li><strong>Good Access (7-10 score):</strong> 20 priority points</li>
-                                <li><strong>Moderate Access (4-6 score):</strong> 0 priority points</li>
-                                <li><strong>Difficult Access (1-3 score):</strong> 10 priority points (grouped for efficiency)</li>
-                            </ul>
-                            <p style="margin-top: 8px; font-size: 13px; color: var(--text-secondary);"><em>Higher scores = easier access, with difficult access grouped for operational efficiency</em></p>
-                        </div>
-
-                        <h4 style="margin: 16px 0 12px 0; color: var(--primary-blue);">🚚 Mobilization Scoring (Pro 2.0 Enhanced)</h4>
-                        <div style="background: var(--background-tertiary); border-radius: var(--radius-small); padding: 16px; margin-bottom: 16px;">
-                            <ul style="color: var(--text-secondary); line-height: 1.7;">
-                                <li><strong>Simple Mobilization (1-2 complexity):</strong> 15 priority points</li>
-                                <li><strong>Moderate Mobilization (3 complexity):</strong> 0 priority points</li>
-                                <li><strong>Complex Mobilization (4-5 complexity):</strong> 5 priority points (grouped coordination)</li>
-                            </ul>
-                            <p style="margin-top: 8px; font-size: 13px; color: var(--text-secondary);"><em>Pro 2.0: Complexity calculated from (Connected Mains + Catchment Mains) × Network Weight + Adjacent Suburb × Cluster Weight</em></p>
-                            <div style="background: #E8F4FD; border-radius: 4px; padding: 12px; margin-top: 12px;">
-                                <strong>Complexity Thresholds:</strong><br>
-                                <span style="font-size: 12px;">Score ≥12: Very Complex (5) | 9-11: Complex (4) | 6-8: Moderate (3) | 3-5: Simple (2) | <3: Very Simple (1)</span>
-                            </div>
-                        </div>
-
-                        <h4 style="margin: 16px 0 12px 0; color: var(--primary-blue);">⚡ Bypass Requirements</h4>
-                        <div style="background: var(--background-tertiary); border-radius: var(--radius-small); padding: 16px; margin-bottom: 16px;">
-                            <ul style="color: var(--text-secondary); line-height: 1.7;">
-                                <li><strong>No Bypass Required:</strong> 10 priority points</li>
-                                <li><strong>Bypass Required:</strong> 5 priority points (coordinated scheduling)</li>
-                            </ul>
-                            <p style="margin-top: 8px; font-size: 13px; color: var(--text-secondary);"><em>Assets requiring bypass are grouped for resource optimization</em></p>
-                        </div>
-
-                        <h4 style="margin: 16px 0 12px 0; color: var(--primary-blue);">🔗 Proximity Coordination</h4>
-                        <div style="background: var(--background-tertiary); border-radius: var(--radius-small); padding: 16px; margin-bottom: 16px;">
-                            <ul style="color: var(--text-secondary); line-height: 1.7;">
-                                <li><strong>Proximity Benefit Achieved:</strong> +20 bonus points</li>
-                                <li><strong>No Proximity Coordination:</strong> 0 bonus points</li>
-                            </ul>
-                            <p style="margin-top: 8px; font-size: 13px; color: var(--text-secondary);"><em>Assets within 500m of same diameter category can be coordinated for efficiency gains</em></p>
-                        </div>
-
-                        <h4 style="margin: 16px 0 12px 0; color: var(--primary-blue);">📏 Work Scope Efficiency</h4>
-                        <div style="background: var(--background-tertiary); border-radius: var(--radius-small); padding: 16px; margin-bottom: 16px;">
-                            <ul style="color: var(--text-secondary); line-height: 1.7;">
-                                <li><strong>Substantial Work (≥500m):</strong> 10 priority points</li>
-                                <li><strong>Moderate Work (201-499m):</strong> 0 priority points</li>
-                                <li><strong>Compact Work (≤200m):</strong> 5 priority points</li>
-                            </ul>
-                            <p style="margin-top: 8px; font-size: 13px; color: var(--text-secondary);"><em>Optimizes crew utilization and resource deployment efficiency</em></p>
-                        </div>
-
-                        <h4 style="margin: 16px 0 12px 0; color: var(--primary-blue);">📅 Timing Alignment</h4>
-                        <div style="background: var(--background-tertiary); border-radius: var(--radius-small); padding: 16px;">
-                            <ul style="color: var(--text-secondary); line-height: 1.7;">
-                                <li><strong>Perfect Timing (recommended year):</strong> 30 priority points</li>
-                                <li><strong>Within 1 Year:</strong> 20 priority points</li>
-                                <li><strong>Within 2 Years:</strong> 10 priority points</li>
-                                <li><strong>Late Maintenance (>2 years):</strong> 5 priority points</li>
-                                <li><strong>Early Maintenance (<0 years):</strong> -10 penalty points</li>
-                            </ul>
-                            <p style="margin-top: 8px; font-size: 13px; color: var(--text-secondary);"><em>Balances asset lifecycle timing with technical efficiency requirements</em></p>
-                        </div>
-
-                        <div style="background: #E8F4FD; border: 2px solid var(--primary-blue); border-radius: var(--radius-small); padding: 20px; margin-top: 24px;">
-                            <h3 style="margin: 0 0 16px 0; color: var(--primary-blue); display: flex; align-items: center;">
-                                <span style="font-size: 20px; margin-right: 8px;">🚀</span>
-                                New in Pro 2.0: Enhanced Prioritization Criteria
-                            </h3>
-                            
-                            <h4 style="margin: 16px 0 12px 0; color: var(--primary-blue);">🌐 Network Connectivity Scoring</h4>
-                            <div style="background: white; border-radius: var(--radius-small); padding: 16px; margin-bottom: 16px;">
-                                <ul style="color: var(--text-secondary); line-height: 1.7;">
-                                    <li><strong>High Connectivity (≥8 network mains):</strong> 15 priority points</li>
-                                    <li><strong>Medium Connectivity (4-7 network mains):</strong> 10 priority points</li>
-                                    <li><strong>Low Connectivity (1-3 network mains):</strong> 5 priority points</li>
-                                </ul>
-                                <p style="margin-top: 8px; font-size: 13px; color: var(--text-secondary);"><em>Based on Connected Mains (<200m) + Number of Mains within Catchment</em></p>
-                            </div>
-
-                            <h4 style="margin: 16px 0 12px 0; color: var(--primary-blue);">🗺️ Geographic Clustering Efficiency</h4>
-                            <div style="background: white; border-radius: var(--radius-small); padding: 16px; margin-bottom: 16px;">
-                                <ul style="color: var(--text-secondary); line-height: 1.7;">
-                                    <li><strong>Geographic Grouping Bonus:</strong> Up to 10 additional points</li>
-                                    <li><strong>Calculation:</strong> Adjacent Suburb × 2 (capped at 10)</li>
-                                </ul>
-                                <p style="margin-top: 8px; font-size: 13px; color: var(--text-secondary);"><em>Optimizes crew deployment and resource utilization across geographic areas</em></p>
-                            </div>
-
-                            <h4 style="margin: 16px 0 12px 0; color: var(--primary-blue);">📊 Enhanced Risk Assessment</h4>
-                            <div style="background: white; border-radius: var(--radius-small); padding: 16px;">
-                                <ul style="color: var(--text-secondary); line-height: 1.7;">
-                                    <li><strong>Direct Numeric Risk Scores:</strong> Supports both categorical and numeric risk data</li>
-                                    <li><strong>Improved Accuracy:</strong> More precise risk quantification for better prioritization</li>
-                                </ul>
-                                <p style="margin-top: 8px; font-size: 13px; color: var(--text-secondary);"><em>Utilizes direct numeric risk field when available, falling back to categorical mapping</em></p>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -1579,27 +1590,6 @@
                             </p>
                         </div>
                         
-                        <!-- Priority Summary Stats -->
-                        <div id="mapStats" style="margin-bottom: 20px;">
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px;">
-                                <div style="text-align: center; padding: 12px; background: #f8f9fa; border-radius: 8px;">
-                                    <div style="font-size: 20px; font-weight: bold; color: #007AFF;">0</div>
-                                    <div style="font-size: 12px; color: #666;">Total Assets</div>
-                                </div>
-                                <div style="text-align: center; padding: 12px; background: #fef2f2; border-radius: 8px;">
-                                    <div style="font-size: 20px; font-weight: bold; color: #DC2626;">0</div>
-                                    <div style="font-size: 12px; color: #666;">Critical</div>
-                                </div>
-                                <div style="text-align: center; padding: 12px; background: #fffbeb; border-radius: 8px;">
-                                    <div style="font-size: 20px; font-weight: bold; color: #F59E0B;">0</div>
-                                    <div style="font-size: 12px; color: #666;">High Priority</div>
-                                </div>
-                                <div style="text-align: center; padding: 12px; background: #f0fdf4; border-radius: 8px;">
-                                    <div style="font-size: 20px; font-weight: bold; color: #10B981;">0</div>
-                                    <div style="font-size: 12px; color: #666;">Scheduled</div>
-                                </div>
-                            </div>
-                        </div>
 
                         <!-- Map Controls -->
                         <div class="map-controls" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; padding: 16px; background: var(--background-tertiary); border-radius: var(--radius-small);">
@@ -1756,6 +1746,13 @@
                 updateApiStatus('active');
                 showNotification('✅ Google Maps API loaded successfully', 'success');
                 console.log('Google Maps API initialized successfully');
+                
+                // Initialize map if we're on the mapped-locations tab
+                const currentTab = document.querySelector('.tab-pane.active');
+                if (currentTab && currentTab.id === 'mapped-locations') {
+                    console.log('Reinitializing asset map after API reload');
+                    initializeAssetMap();
+                }
                 
             } catch (error) {
                 // API failed to load or function properly
@@ -1936,10 +1933,15 @@
                 // Clean the string - handle CSV format with � symbols and quotes
                 const cleaned = dmsString.trim()
                     .replace(/"/g, '') // Remove all quote marks
-                    .replace(/�/g, '°'); // Replace � with degree symbol
+                    .replace(/�/g, '°') // Replace � with degree symbol
+                    .replace(/'/g, "'") // Normalize single quotes
+                    .replace(/'/g, "'") // Handle different quote types
+                    .replace(/'/g, "'"); // Handle curly quotes
                 
-                // Pattern to match: 27°42'52.1S 153°11'58.6E format
-                const dmsPattern = /(\d+)°(\d+)'([\d.]+)([NSEW])\s+(\d+)°(\d+)'([\d.]+)([NSEW])/i;
+                console.log('Parsing DMS coordinates:', dmsString, '-> cleaned:', cleaned);
+                
+                // Updated pattern to be more flexible with spacing and quote types
+                const dmsPattern = /(\d+)[°](\d+)[']([0-9.]+)['"]*([NSEW])\s*(\d+)[°](\d+)[']([0-9.]+)['"]*([NSEW])/i;
                 const match = cleaned.match(dmsPattern);
                 
                 if (!match) {
@@ -1963,6 +1965,7 @@
                     lat = dir2.toUpperCase() === 'S' ? -coord2 : coord2;
                 }
                 
+                console.log('Parsed coordinates:', { lat, lng });
                 return { lat, lng };
             } catch (error) {
                 console.error('Error parsing DMS coordinates:', dmsString, error);
@@ -2069,12 +2072,12 @@
                             if (cleanHeader.includes('rating') || cleanHeader.includes('category') || cleanHeader.includes('level')) {
                                 // Categorical risk rating (High, Moderate, Low) - PRIORITY
                                 const riskMap = {
-                                    'extreme': 25, 
-                                    'veryhigh': 20, 'very high': 20,
-                                    'high': 15, 
-                                    'moderate': 10, 'medium': 10,
-                                    'low': 5, 
-                                    'verylow': 1, 'very low': 1
+                                    'extreme': 25, 'extremerisk': 25,
+                                    'veryhigh': 20, 'very high': 20, 'veryhighrisk': 20,
+                                    'high': 15, 'highrisk': 15,
+                                    'moderate': 10, 'medium': 10, 'moderaterisk': 10, 'mediumrisk': 10,
+                                    'low': 5, 'lowrisk': 5,
+                                    'verylow': 1, 'very low': 1, 'verylowrisk': 1
                                 };
                                 const normalizedValue = value.toLowerCase().replace(/\s+/g, '');
                                 asset.riskScore = riskMap[normalizedValue] || riskMap[value.toLowerCase()] || 10;
@@ -2095,11 +2098,15 @@
                         else if (cleanHeader.includes('connected') && cleanHeader.includes('mains')) asset.connectedMains = parseInt(value) || 0;
                         else if (cleanHeader.includes('number') && cleanHeader.includes('mains') && cleanHeader.includes('catchment')) asset.catchmentMains = parseInt(value) || 0;
                         // Handle coordinates - support DMS format, decimal lat/lng, and legacy X/Y
-                        else if (cleanHeader.includes('latitude and longitude') || cleanHeader.includes('coordinates')) {
+                        else if (cleanHeader.includes('latitudeandlongitude') || cleanHeader.includes('coordinates')) {
+                            console.log('Processing coordinate column:', header, 'value:', value, 'cleanHeader:', cleanHeader);
                             const coords = parseDMSCoordinates(value);
                             if (coords) {
                                 asset.lat = coords.lat;
                                 asset.lng = coords.lng;
+                                console.log('Successfully parsed coordinates:', coords);
+                            } else {
+                                console.warn('Failed to parse coordinates for', asset.id, 'value:', value);
                             }
                         }
                         else if (cleanHeader.includes('latitude') || cleanHeader.includes('lat')) asset.lat = parseFloat(value) || 0;
@@ -2125,31 +2132,11 @@
                     const connectedMainsFactor = asset.connectedMains || 0;
                     const catchmentMainsFactor = asset.catchmentMains || 0;
                     
-                    // Calculate mobilization complexity (1-5 scale) based on network density and location
-                    // Higher connectivity = higher complexity due to coordination requirements
-                    // Use default weights if form values not available (for CSV parsing)
-                    const networkWeightValue = typeof networkWeight !== 'undefined' ? networkWeight : 1.0;
-                    const clusterWeightValue = typeof clusterWeight !== 'undefined' ? clusterWeight : 1.0;
+                    // Set default mobilization complexity (RevI format doesn't include network connectivity data)
+                    asset.mobilizationComplexity = 3; // Default to moderate complexity
                     
-                    const weightedNetworkDensity = (connectedMainsFactor + catchmentMainsFactor) * networkWeightValue;
-                    const weightedGeographicFactor = suburbFactor * clusterWeightValue;
-                    const totalComplexityScore = weightedNetworkDensity + weightedGeographicFactor;
-                    
-                    if (totalComplexityScore >= 12) asset.mobilizationComplexity = 5; // Very complex
-                    else if (totalComplexityScore >= 9) asset.mobilizationComplexity = 4; // Complex
-                    else if (totalComplexityScore >= 6) asset.mobilizationComplexity = 3; // Moderate
-                    else if (totalComplexityScore >= 3) asset.mobilizationComplexity = 2; // Simple
-                    else asset.mobilizationComplexity = 1; // Very simple
-                    
-                    // New Pro 2.0: Calculate network connectivity metrics
-                    asset.networkConnectivity = connectedMainsFactor + catchmentMainsFactor;
-                    asset.connectivityLevel = asset.networkConnectivity >= 8 ? 'High' : 
-                                            asset.networkConnectivity >= 4 ? 'Medium' : 'Low';
-                    
-                    // New Pro 2.0: Geographic clustering benefit
-                    asset.geographicGroup = suburbFactor;
-                    asset.clusteringBenefit = asset.geographicGroup > 0 ? 
-                        Math.min(asset.geographicGroup * 2, 10) : 0;
+                    // RevI Update: Removed fake clustering/connectivity from missing CSV columns
+                    // Real proximity clustering will be handled by actual coordinate distance calculations
                     
                     if (asset && asset.id && asset.length && asset.diameter) {
                         assets.push(asset);
@@ -2175,7 +2162,7 @@
                 
                 const fileInfo = document.getElementById('fileInfo');
                 fileInfo.innerHTML = `
-                    <strong>✅ Successfully loaded:</strong> ${assets.length} trunk mains (${highRiskCount} high risk)<br>
+                    <strong>✅ Successfully loaded:</strong> ${assets.length} trunk mains<br>
                     <span style="display: inline-block; background: #E3F2E3; color: #2A7A2A; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">Data Source: Uploaded</span>
                 `;
                 
@@ -2344,13 +2331,12 @@
             const accessPenalty = parseFloat(document.getElementById('accessPenalty').value);
             const accessThreshold = parseInt(document.getElementById('accessThreshold').value);
             const bypassTimeDelay = parseInt(document.getElementById('bypassTimeDelay').value);
-            const mobComplexThreshold = parseInt(document.getElementById('mobComplexThreshold').value);
             const proximityRadius = parseFloat(document.getElementById('proximityRadius').value);
             const proximityBonus = parseFloat(document.getElementById('proximityBonus').value) / 100;
             
-            // New Pro 2.0: Read network analysis weights
-            const networkWeight = parseFloat(document.getElementById('networkWeight').value);
-            const clusterWeight = parseFloat(document.getElementById('clusterWeight').value);
+            // User-defined priority weighting system
+            const riskWeight = parseFloat(document.getElementById('riskWeight').value) / 100; // Convert % to decimal
+            const operationalWeight = 1 - riskWeight; // Complementary weight
             
             // Technical efficiency optimization with constraint handling
             let schedule = [];
@@ -2403,62 +2389,110 @@
                             asset.effectiveLength = asset.length;
                         }
                         
-                        // Enhanced Pro 2.0: Calculate technical priority score based on multiple factors
-                        let technicalScore = 0;
+                        // RECALIBRATED SCORING SYSTEM: Risk 60%, Operational Factors 40%
+                        // Aligned with legend thresholds: Critical 150+, High 120-149, Medium 80-119, Low <80
                         
-                        // Risk priority (highest weight) - Enhanced with direct numeric support
-                        if (asset.riskScore >= 20) technicalScore += 100;
-                        else if (asset.riskScore >= 15) technicalScore += 75;
-                        else if (asset.riskScore >= 10) technicalScore += 50;
-                        else technicalScore += 25;
+                        // 1. RISK COMPONENT (60% of total score) - Maximum 150 points for highest risk
+                        let riskScore = 0;
+                        if (asset.riskScore >= 20) riskScore = 150;      // Extreme risk
+                        else if (asset.riskScore >= 15) riskScore = 130; // Very high risk
+                        else if (asset.riskScore >= 10) riskScore = 110; // High risk
+                        else if (asset.riskScore >= 8) riskScore = 90;   // High risk threshold for RevI
+                        else if (asset.riskScore >= 4) riskScore = 70;   // Moderate risk threshold
+                        else riskScore = 50; // Low risk baseline
                         
-                        // Access efficiency factor
-                        if (asset.accessScore >= 7) technicalScore += 20;
-                        else if (asset.accessScore <= 3) technicalScore += 10; // Group difficult access
+                        // 2. OPERATIONAL COMPONENTS (40% of total score) - Maximum 60 points combined
+                        let operationalScore = 0;
                         
-                        // Mobilization efficiency factor
-                        if (asset.mobilizationComplexity <= 2) technicalScore += 15;
-                        else if (asset.mobilizationComplexity >= 4) technicalScore += 5; // Group complex setups
+                        // Access efficiency factor (max 25 points)
+                        if (asset.accessScore >= 7) operationalScore += 25;      // Excellent access
+                        else if (asset.accessScore >= 4) operationalScore += 15; // Good access
+                        else operationalScore += 8; // Difficult access
                         
-                        // Bypass coordination factor
-                        if (!asset.bypassRequired) technicalScore += 10;
-                        else technicalScore += 5; // Group bypass requirements
+                        // Bypass coordination factor (max 20 points)
+                        if (!asset.bypassRequired) operationalScore += 20; // No bypass needed
+                        else operationalScore += 10; // Bypass coordination required
                         
-                        // Work scope efficiency
-                        if (asset.length >= 500) technicalScore += 10; // Substantial work
-                        else if (asset.length <= 200) technicalScore += 5; // Quick completion
+                        // Work scope efficiency (max 15 points)
+                        if (asset.length >= 500) operationalScore += 15; // Major work scope
+                        else if (asset.length >= 200) operationalScore += 12; // Moderate scope
+                        else operationalScore += 8; // Minor scope
                         
-                        // New Pro 2.0: Network connectivity bonus
-                        if (asset.connectivityLevel === 'High') technicalScore += 15; // High network impact
-                        else if (asset.connectivityLevel === 'Medium') technicalScore += 10;
-                        else if (asset.connectivityLevel === 'Low') technicalScore += 5;
-                        
-                        // New Pro 2.0: Geographic clustering efficiency
-                        technicalScore += asset.clusteringBenefit || 0;
-                        
-                        // Recommended year alignment (important factor)
+                        // Timing alignment (max 30 points)
                         const recommendedYear = asset.recommendedYear || new Date().getFullYear();
-                        const currentActualYear = new Date().getFullYear() + year - 1;  // Convert iteration to actual year
+                        const currentActualYear = new Date().getFullYear() + year - 1;
                         const yearsDifference = currentActualYear - recommendedYear;
                         
-                        if (yearsDifference === 0) technicalScore += 30; // Perfect timing
-                        else if (Math.abs(yearsDifference) === 1) technicalScore += 20; // Within 1 year
-                        else if (Math.abs(yearsDifference) === 2) technicalScore += 10; // Within 2 years
-                        else if (yearsDifference > 2) technicalScore += 5; // Late maintenance
-                        else technicalScore -= 10; // Early maintenance penalty
+                        if (yearsDifference === 0) operationalScore += 30; // Perfect timing
+                        else if (Math.abs(yearsDifference) === 1) operationalScore += 20; // Within 1 year
+                        else if (Math.abs(yearsDifference) === 2) operationalScore += 10; // Within 2 years
+                        else if (yearsDifference > 2) operationalScore += 5; // Late maintenance
+                        else operationalScore = Math.max(0, operationalScore - 10); // Early penalty
+                        
+                        // DYNAMIC WEIGHTED SCORE: User-defined Risk/Operational split
+                        const technicalScore = Math.round((riskScore * riskWeight) + (operationalScore * operationalWeight));
+                        
+                        // Debug logging for first few assets
+                        if (year === 1 && remainingAssets.indexOf(asset) < 5) {
+                            console.log(`⚖️ DYNAMIC WEIGHTING - Asset ${asset.id}: Risk=${riskScore}×${riskWeight.toFixed(2)}=${Math.round(riskScore*riskWeight)}, Op=${operationalScore}×${operationalWeight.toFixed(2)}=${Math.round(operationalScore*operationalWeight)}, Total=${technicalScore}`);
+                        }
                         
                         asset.technicalScore = technicalScore;
                     });
                     
-                    // Sort by technical efficiency score
-                    remainingAssets.sort((a, b) => b.technicalScore - a.technicalScore);
+                    // RISK-FIRST PRIORITIZATION: Sort by risk tier first, then technical score
+                    console.log(`🎯 REVI RISK-FIRST ALGORITHM ACTIVE - Year ${year}`);
+                    remainingAssets.sort((a, b) => {
+                        // Determine risk tiers (High > Moderate > Low)
+                        const getRiskTier = (asset) => {
+                            if (asset.riskScore >= 8 || (asset.riskCategory && asset.riskCategory.toLowerCase().includes('high'))) return 3; // High Risk
+                            if (asset.riskScore >= 4 || (asset.riskCategory && asset.riskCategory.toLowerCase().includes('moderate'))) return 2; // Moderate Risk
+                            return 1; // Low Risk
+                        };
+                        
+                        const tierA = getRiskTier(a);
+                        const tierB = getRiskTier(b);
+                        
+                        // Sort by risk tier first (3=High, 2=Moderate, 1=Low)
+                        if (tierA !== tierB) return tierB - tierA;
+                        
+                        // Within same risk tier, sort by technical score
+                        return b.technicalScore - a.technicalScore;
+                    });
                     
                     for (let asset of remainingAssets) {
                         // Check for proximity benefits using Google Maps API
                         const proximateAssets = findProximateAssets(asset, yearlyAssets, schedule, year, proximityRadius);
                         
-                        // Check if asset can be scheduled based on annual length limit
-                        if (yearlyLength + asset.length <= dynamicCapacity) {
+                        // RISK-FIRST RULE: Lower risk assets can only be scheduled if:
+                        // 1. They are high risk, OR
+                        // 2. They are within proximity of already scheduled high-risk assets
+                        const assetRiskTier = asset.riskScore >= 8 || (asset.riskCategory && asset.riskCategory.toLowerCase().includes('high')) ? 3 :
+                                            asset.riskScore >= 4 || (asset.riskCategory && asset.riskCategory.toLowerCase().includes('moderate')) ? 2 : 1;
+                        
+                        let canSchedule = false;
+                        
+                        if (assetRiskTier === 3) {
+                            // High risk assets can always be scheduled (capacity permitting)
+                            canSchedule = true;
+                        } else {
+                            // Lower risk assets can only be scheduled if near high-risk assets already in this year
+                            const highRiskInYear = yearlyAssets.filter(scheduled => {
+                                const scheduledRiskTier = scheduled.riskScore >= 8 || (scheduled.riskCategory && scheduled.riskCategory.toLowerCase().includes('high')) ? 3 : 2;
+                                return scheduledRiskTier === 3;
+                            });
+                            
+                            if (highRiskInYear.length > 0) {
+                                // Check if current asset is within proximity of any high-risk asset in this year
+                                canSchedule = proximateAssets.some(proximate => {
+                                    const proximateRiskTier = proximate.riskScore >= 8 || (proximate.riskCategory && proximate.riskCategory.toLowerCase().includes('high')) ? 3 : 2;
+                                    return proximateRiskTier === 3;
+                                });
+                            }
+                        }
+                        
+                        // Check if asset can be scheduled based on annual length limit AND risk-proximity rules
+                        if (canSchedule && yearlyLength + asset.length <= dynamicCapacity) {
                             const drivers = getTechnicalSchedulingDrivers(asset, year);
                             
                             yearlyAssets.push({
@@ -2658,7 +2692,7 @@
             
             // Update metrics
             document.getElementById('totalCost').textContent = `${(totalLength/1000).toFixed(1)}km`;
-            document.getElementById('riskReduction').textContent = `${totalRiskCoverage}/${highRiskAssets}`;
+            document.getElementById('riskReduction').textContent = `${schedule.length}/${assets.length}`;
             document.getElementById('assetsScheduled').textContent = `${schedule.length}/${assets.length}`;
             
             
@@ -2681,19 +2715,88 @@
             Object.keys(groupedByYear).sort().forEach(year => {
                 const yearAssets = groupedByYear[year];
                 const yearLength = yearAssets.reduce((sum, asset) => sum + asset.length, 0);
-                const yearRiskAssets = yearAssets.filter(asset => asset.riskScore >= 15).length;
+                
+                // Calculate year totals for scoring criteria
+                const yearTotals = {
+                    access: yearAssets.reduce((sum, asset) => sum + (asset.accessScore || 0), 0),
+                    adjacentSuburb: yearAssets.reduce((sum, asset) => sum + (asset.suburb || 0), 0),
+                    connectedMains: yearAssets.reduce((sum, asset) => sum + (asset.connectedMains || 0), 0),
+                    catchmentMains: yearAssets.reduce((sum, asset) => sum + (asset.catchmentMains || 0), 0),
+                    totalScore: yearAssets.reduce((sum, asset) => sum + (asset.technicalScore || 0), 0)
+                };
+                
+                // Generate year-specific rationale based on actual scheduling logic
+                const generateYearRationale = (currentYear, allGroupedYears, currentAssets) => {
+                    const yearKeys = Object.keys(allGroupedYears).sort();
+                    const currentYearIndex = yearKeys.indexOf(currentYear.toString());
+                    
+                    // Count risk distribution in current year
+                    const highRiskCount = currentAssets.filter(asset => 
+                        asset.riskScore >= 8 || (asset.riskCategory && asset.riskCategory.toLowerCase().includes('high'))
+                    ).length;
+                    const totalAssets = currentAssets.length;
+                    
+                    if (highRiskCount === totalAssets) {
+                        return "High-risk asset prioritization with geographic clustering for maximum efficiency";
+                    } else if (highRiskCount > 0) {
+                        return "High-risk assets scheduled with proximate lower-risk assets for operational efficiency";
+                    } else if (currentYearIndex === 0) {
+                        return "Risk-based prioritization focuses on highest consequence assets first";
+                    } else {
+                        return "Completion of risk-based program with remaining assets by priority and proximity";
+                    }
+                };
+                
+                const yearRationale = generateYearRationale(year, groupedByYear, yearAssets);
                 
                 const yearHeader = document.createElement('div');
                 yearHeader.style.cssText = 'padding: 16px 20px; background: var(--background-tertiary); font-weight: 600; color: var(--primary-blue); border-bottom: 1px solid var(--border-color);';
                 yearHeader.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span>Year ${year} (${yearAssets.length} assets - ${(yearLength/1000).toFixed(1)}km)</span>
-                        <span style="font-size: 14px; color: var(--success-green);">
-                            High Risk: ${yearRiskAssets} assets
-                        </span>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
+                        <div>
+                            <div style="font-size: 16px; margin-bottom: 4px;">Year ${year} (${yearAssets.length} assets - ${(yearLength/1000).toFixed(1)}km)</div>
+                            <div style="font-size: 13px; font-style: italic; color: #6B7280; font-weight: normal;">
+                                <strong>Rationale:</strong> ${yearRationale}
+                            </div>
+                        </div>
                     </div>
                 `;
                 scheduleContainer.appendChild(yearHeader);
+                
+                // Add yearly sum totals
+                const yearSummary = document.createElement('div');
+                yearSummary.style.cssText = 'padding: 12px 20px; background: #F8FAFC; border-bottom: 1px solid var(--border-color); font-size: 14px;';
+                yearSummary.innerHTML = `
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 8px;">
+                        <div style="text-align: center;">
+                            <strong>Access Total:</strong><br>
+                            <span style="color: var(--primary-blue); font-weight: 600;">${yearTotals.access}</span>
+                        </div>
+                        <div style="text-align: center;">
+                            <strong>Total Score Sum:</strong><br>
+                            <span style="color: var(--success-green); font-weight: 600; font-size: 16px;">${yearTotals.totalScore}</span>
+                        </div>
+                    </div>
+                `;
+                scheduleContainer.appendChild(yearSummary);
+                
+                // Add rationale explanation for scheduling decisions
+                const futureYears = Object.keys(groupedByYear).filter(y => parseInt(y) > parseInt(year));
+                if (futureYears.length > 0) {
+                    const futureHigherScores = futureYears.some(futureYear => {
+                        const futureAssets = groupedByYear[futureYear];
+                        const futureMinScore = Math.min(...futureAssets.map(asset => asset.technicalScore || 0));
+                        const currentMaxScore = Math.max(...yearAssets.map(asset => asset.technicalScore || 0));
+                        return futureMinScore > currentMaxScore;
+                    });
+                    
+                    if (futureHigherScores) {
+                        const rationale = document.createElement('div');
+                        rationale.style.cssText = 'padding: 8px 20px; background: #FEF3C7; border-left: 4px solid #F59E0B; font-size: 13px; font-style: italic; color: #92400E; margin-bottom: 1px;';
+                        rationale.innerHTML = `<strong>Scheduling Rationale:</strong> Lower-scoring assets are prioritized this year due to geographic clustering, proximity coordination, and network connectivity benefits that optimize mobilization efficiency and reduce overall program costs.`;
+                        scheduleContainer.appendChild(rationale);
+                    }
+                }
                 
                 
                 // Create table for assets
@@ -2710,9 +2813,6 @@
                     <th style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">Risk Rating</th>
                     <th style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">Access</th>
                     <th style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">Bypass</th>
-                    <th style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">Adjacent Suburb</th>
-                    <th style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">Connected Mains</th>
-                    <th style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">Catchment Mains</th>
                     <th style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">Total Score</th>
                 `;
                 table.appendChild(headerRow);
@@ -2727,10 +2827,19 @@
                     const trafficAmber = '#FED7AA';  // Pastel Amber/Yellow
                     const trafficGreen = '#BBF7D0';  // Pastel Green
                     
-                    // Risk color coding (High risk = Red, Medium = Amber, Low = Green)
-                    let riskColor = trafficRed; // Red for high risk
-                    if (asset.riskScore <= 5) riskColor = trafficGreen; // Green for low risk
-                    else if (asset.riskScore <= 10) riskColor = '#FCE7F3'; // Pink for medium risk
+                    // Risk color coding: High Risk = pastel red, Moderate Risk = pastel orange, Low Risk = pastel green
+                    let riskColor = '#FECACA'; // Pastel red for high risk (default)
+                    if (asset.riskCategory) {
+                        const category = asset.riskCategory.toLowerCase();
+                        if (category.includes('low')) riskColor = '#BBF7D0'; // Pastel green for low risk
+                        else if (category.includes('moderate') || category.includes('medium')) riskColor = '#FED7AA'; // Pastel orange for moderate risk
+                        else if (category.includes('high')) riskColor = '#FECACA'; // Pastel red for high risk
+                    } else {
+                        // Fallback to score-based coloring
+                        if (asset.riskScore <= 5) riskColor = '#BBF7D0'; // Pastel green for low risk
+                        else if (asset.riskScore <= 10) riskColor = '#FED7AA'; // Pastel orange for moderate risk
+                        else riskColor = '#FECACA'; // Pastel red for high risk
+                    }
                     
                     // Access color coding (Good access = Green, Moderate = Amber, Difficult = Red)
                     let accessColor = trafficRed; // Red for difficult access
@@ -2767,15 +2876,6 @@
                         </td>
                         <td style="padding: 8px; border: 1px solid var(--border-color); text-align: center; background-color: ${asset.bypassRequired ? trafficRed : trafficGreen}; color: #374151; font-weight: 600;">
                             ${asset.bypassRequired ? 'Required' : 'No'}
-                        </td>
-                        <td style="padding: 8px; border: 1px solid var(--border-color); text-align: center; background-color: ${getNetworkColor(suburbValue)}; color: #374151; font-weight: 600;">
-                            ${suburbValue}
-                        </td>
-                        <td style="padding: 8px; border: 1px solid var(--border-color); text-align: center; background-color: ${getNetworkColor(connectedValue)}; color: #374151; font-weight: 600;">
-                            ${connectedValue}
-                        </td>
-                        <td style="padding: 8px; border: 1px solid var(--border-color); text-align: center; background-color: ${getNetworkColor(catchmentValue)}; color: #374151; font-weight: 600;">
-                            ${catchmentValue}
                         </td>
                         <td style="padding: 8px; border: 1px solid var(--border-color); text-align: center; background-color: ${scoreColor}; color: #374151; font-weight: 600;">
                             ${totalScore}
@@ -2980,39 +3080,37 @@
         }
         
         function calculateBaseTechnicalScore(asset) {
-            let technicalScore = 0;
+            // RECALIBRATED SCORING SYSTEM: Risk 60%, Operational Factors 40%
+            // Aligned with legend thresholds: Critical 150+, High 120-149, Medium 80-119, Low <80
             
-            // Risk priority (highest weight) - Enhanced Pro 2.0 with direct numeric support
-            if (asset.riskScore >= 20) technicalScore += 100;
-            else if (asset.riskScore >= 15) technicalScore += 75;
-            else if (asset.riskScore >= 10) technicalScore += 50;
-            else technicalScore += 25;
+            // 1. RISK COMPONENT (60% of total score) - Maximum 150 points for highest risk
+            let riskScore = 0;
+            if (asset.riskScore >= 20) riskScore = 150;      // Extreme risk
+            else if (asset.riskScore >= 15) riskScore = 130; // Very high risk
+            else if (asset.riskScore >= 10) riskScore = 110; // High risk
+            else if (asset.riskScore >= 8) riskScore = 90;   // High risk threshold for RevI
+            else if (asset.riskScore >= 4) riskScore = 70;   // Moderate risk threshold
+            else riskScore = 50; // Low risk baseline
             
-            // Access efficiency factor
-            if (asset.accessScore >= 7) technicalScore += 20;
-            else if (asset.accessScore <= 3) technicalScore += 10;
+            // 2. OPERATIONAL COMPONENTS (40% of total score) - Maximum 60 points combined
+            let operationalScore = 0;
             
-            // Mobilization efficiency factor
-            if (asset.mobilizationComplexity <= 2) technicalScore += 15;
-            else if (asset.mobilizationComplexity >= 4) technicalScore += 5;
+            // Access efficiency factor (max 25 points)
+            if (asset.accessScore >= 7) operationalScore += 25;      // Excellent access
+            else if (asset.accessScore >= 4) operationalScore += 15; // Good access
+            else operationalScore += 8; // Difficult access
             
-            // Bypass coordination factor
-            if (!asset.bypassRequired) technicalScore += 10;
-            else technicalScore += 5;
+            // Bypass coordination factor (max 20 points)
+            if (!asset.bypassRequired) operationalScore += 20; // No bypass needed
+            else operationalScore += 10; // Bypass coordination required
             
-            // Work scope efficiency
-            if (asset.length >= 500) technicalScore += 10;
-            else if (asset.length <= 200) technicalScore += 5;
+            // Work scope efficiency (max 15 points)
+            if (asset.length >= 500) operationalScore += 15; // Major work scope
+            else if (asset.length >= 200) operationalScore += 12; // Moderate scope
+            else operationalScore += 8; // Minor scope
             
-            // New Pro 2.0: Network connectivity bonus
-            if (asset.connectivityLevel === 'High') technicalScore += 15; // High network impact
-            else if (asset.connectivityLevel === 'Medium') technicalScore += 10;
-            else if (asset.connectivityLevel === 'Low') technicalScore += 5;
-            
-            // New Pro 2.0: Geographic clustering efficiency
-            technicalScore += asset.clusteringBenefit || 0;
-            
-            return technicalScore;
+            // FINAL WEIGHTED SCORE: Risk (60%) + Operational (40%)
+            return Math.round((riskScore * 0.6) + (operationalScore * 0.4));
         }
         
         function calculateSchedulingBonus(asset, scheduleYear) {
@@ -3178,33 +3276,58 @@
         
         // Configure API key
         function configureApiKey() {
-            const apiKeyInput = document.getElementById('apiKeyInput');
-            const apiKey = apiKeyInput.value.trim();
-            
-            if (!apiKey) {
-                showNotification('Please enter a valid API key', 'error');
-                return;
+            try {
+                console.log('configureApiKey function called');
+                const apiKeyInput = document.getElementById('apiKeyInput');
+                
+                if (!apiKeyInput) {
+                    console.error('API key input element not found');
+                    showNotification('❌ Configuration error: Input field not found', 'error');
+                    return;
+                }
+                
+                const apiKey = apiKeyInput.value.trim();
+                console.log('API key entered:', apiKey ? `${apiKey.substring(0, 10)}...` : 'empty');
+                
+                if (!apiKey) {
+                    showNotification('⚠️ Please enter a valid API key', 'error');
+                    return;
+                }
+                
+                // Validate API key format (basic validation)
+                if (apiKey.length < 20) {
+                    showNotification('⚠️ API key appears to be too short. Please check your key.', 'error');
+                    return;
+                }
+                
+                // Store API key in localStorage
+                localStorage.setItem('gmaps_api_key', apiKey);
+                console.log('API key stored in localStorage');
+                
+                // Update configuration
+                GOOGLE_MAPS_CONFIG.API_KEY = apiKey;
+                console.log('GOOGLE_MAPS_CONFIG updated');
+                
+                // Clear input for security
+                apiKeyInput.value = '';
+                
+                // Show success message
+                showNotification('✅ API key configured successfully! Reloading Google Maps...', 'success');
+                
+                // Update status
+                updateApiKeyStatus();
+                console.log('API key status updated');
+                
+                // Reload Google Maps script with new API key
+                setTimeout(() => {
+                    console.log('Reloading Google Maps API...');
+                    reloadGoogleMapsAPI();
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Error in configureApiKey:', error);
+                showNotification('❌ Failed to configure API key: ' + error.message, 'error');
             }
-            
-            // Store API key in localStorage
-            localStorage.setItem('gmaps_api_key', apiKey);
-            
-            // Update configuration
-            GOOGLE_MAPS_CONFIG.API_KEY = apiKey;
-            
-            // Clear input for security
-            apiKeyInput.value = '';
-            
-            // Show success message
-            showNotification('✅ API key configured successfully! Reloading Google Maps...', 'success');
-            
-            // Update status
-            updateApiKeyStatus();
-            
-            // Reload Google Maps script with new API key
-            setTimeout(() => {
-                reloadGoogleMapsAPI();
-            }, 1500);
         }
         
         // Clear API key
@@ -3278,13 +3401,24 @@
         
         // Update map with current data
         function updateMapWithCurrentData() {
+            console.log('updateMapWithCurrentData called with', assets.length, 'assets');
+            
             // If we're in fallback mode or no Google Maps, refresh the fallback view
             if (!window.google || !window.google.maps || apiStatus.status === 'fallback') {
+                console.log('Using fallback map view - Google Maps not available');
                 createFallbackMapView();
                 return;
             }
             
-            if (!assetMap || !assets.length) return;
+            if (!assetMap) {
+                console.log('No assetMap initialized');
+                return;
+            }
+            
+            if (!assets.length) {
+                console.log('No assets loaded - cannot update map');
+                return;
+            }
             
             // Calculate scores for all assets if not already done
             const assetsWithScores = assets.map(asset => {
@@ -3297,7 +3431,6 @@
             });
             
             createAssetMarkers(assetsWithScores);
-            updateMapStats(assetsWithScores);
             updateYearFilter();
             updatePriorityRanking(assetsWithScores);
         }
@@ -3353,6 +3486,9 @@
             
             // Calculate map bounds
             const bounds = new google.maps.LatLngBounds();
+            let validAssets = 0;
+            
+            console.log('Creating markers for', assets.length, 'assets');
             
             assets.forEach(asset => {
                 const priority = getPriorityLevel(asset.totalScore);
@@ -3360,7 +3496,13 @@
                 
                 // Create marker with priority-based styling - use lat/lng if available, fallback to legacy x/y
                 const position = getAssetPosition(asset);
-                if (!position) return; // Skip assets without valid coordinates
+                if (!position) {
+                    console.warn(`No valid coordinates for asset ${asset.id}:`, { lat: asset.lat, lng: asset.lng, x: asset.x, y: asset.y });
+                    return; // Skip assets without valid coordinates
+                }
+                
+                validAssets++;
+                console.log(`Asset ${asset.id} positioned at:`, position);
                 
                 const marker = new google.maps.Marker({
                     position: position,
@@ -3391,8 +3533,20 @@
             });
             
             // Fit map to show all markers
+            console.log(`Created ${validAssets} markers out of ${assets.length} assets`);
             if (markers.length > 0) {
+                console.log('Fitting map bounds to', markers.length, 'markers');
                 assetMap.fitBounds(bounds);
+                
+                // Add a small zoom adjustment after bounds are set
+                setTimeout(() => {
+                    const currentZoom = assetMap.getZoom();
+                    if (currentZoom > 15) {
+                        assetMap.setZoom(15);
+                    }
+                }, 100);
+            } else {
+                console.warn('No markers created - map will remain at default location');
             }
         }
         
@@ -3456,20 +3610,48 @@
         
         // Map control functions
         function fitMapToAssets() {
-            if (!assetMap || markers.length === 0) return;
+            console.log('fitMapToAssets called - assetMap:', !!assetMap, 'markers:', markers.length);
+            if (!assetMap) {
+                console.log('No map initialized');
+                return;
+            }
+            if (markers.length === 0) {
+                console.log('No markers to fit to - trying to update map with current data');
+                updateMapWithCurrentData();
+                return;
+            }
             
             const bounds = new google.maps.LatLngBounds();
             markers.forEach(marker => bounds.extend(marker.getPosition()));
             assetMap.fitBounds(bounds);
+            console.log('Map bounds fitted to', markers.length, 'markers');
         }
         
         function toggleHeatmap() {
-            if (!assetMap) return;
+            console.log('toggleHeatmap called - assetMap:', !!assetMap, 'markers:', markers.length);
+            if (!assetMap) {
+                console.log('No map initialized for heatmap');
+                return;
+            }
             
             if (heatmap) {
                 heatmap.setMap(null);
                 heatmap = null;
+                console.log('Heatmap disabled');
             } else {
+                if (markers.length === 0) {
+                    console.log('No markers available for heatmap - trying to update map');
+                    updateMapWithCurrentData();
+                    return;
+                }
+                
+                // Check if visualization library is loaded
+                if (!google.maps.visualization || !google.maps.visualization.HeatmapLayer) {
+                    console.error('Google Maps Visualization library not loaded');
+                    showNotification('⚠️ Heatmap requires Google Maps Visualization library. Please reload the page.', 'error');
+                    return;
+                }
+                
                 const heatmapData = markers.map(marker => ({
                     location: marker.getPosition(),
                     weight: getMarkerWeight(marker)
@@ -3481,6 +3663,7 @@
                     radius: 50,
                     opacity: 0.7
                 });
+                console.log('Heatmap enabled with', heatmapData.length, 'data points');
             }
         }
         
@@ -3498,6 +3681,9 @@
             const priorityFilter = document.getElementById('priorityFilter')?.value || 'all';
             const scheduleFilter = document.getElementById('scheduleFilter')?.value || 'all';
             const yearFilter = document.getElementById('yearFilter')?.value || 'all';
+            
+            console.log('applyMapFilters called with filters:', { priorityFilter, scheduleFilter, yearFilter });
+            console.log('Total assets before filtering:', assets.length);
             
             let filteredAssets = assets.map(asset => {
                 const scheduleYear = schedule.find(s => s.id === asset.id)?.year;
@@ -3531,9 +3717,10 @@
                 );
             }
             
+            console.log('Filtered assets:', filteredAssets.length);
+            
             // Update map with filtered assets
             createAssetMarkers(filteredAssets);
-            updateMapStats(filteredAssets);
         }
         
         function updateMapStats(filteredAssets) {
